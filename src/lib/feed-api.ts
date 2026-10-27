@@ -1,3 +1,5 @@
+import { profileApi } from "./profile-api";
+import { profileRuleIssues } from "./profile-rules";
 import { workbookUploadApi } from "./workbook-upload-api";
 import { draftApi } from "./draft-api";
 import { workbookCatalog } from "./workbook-catalog";
@@ -54,30 +56,13 @@ const formula = z.object({
     .enum(["draft", "pending-review", "approved", "rejected"])
     .default("draft"),
 });
-const range = z
-  .object({
-    min: z.number().finite().nonnegative().optional(),
-    max: z.number().finite().nonnegative().optional(),
-  })
-  .refine(
-    (r) =>
-      (r.min !== undefined || r.max !== undefined) &&
-      (r.min ?? 0) <= (r.max ?? Infinity),
-  );
-const limits = z.object({
-  energy: range.optional(),
-  protein: range.optional(),
-  dryMatter: range.optional(),
-  calcium: range.optional(),
-  phosphorus: range.optional(),
-  methionine: range.optional(),
-  lysine: range.optional(),
-});
 export async function feedApi(
   request: NextRequest,
   user: { id: string },
   path: string,
 ) {
+  const profileResponse = await profileApi(request, user, path);
+  if (profileResponse) return profileResponse;
   const uploadResponse = await workbookUploadApi(request, user, path);
   if (uploadResponse) return uploadResponse;
   const draftResponse = await draftApi(request, user, path);
@@ -335,64 +320,6 @@ export async function feedApi(
       { status: 201 },
     );
   }
-  if (path === "profiles" && method === "POST") {
-    const input = z
-      .object({
-        organizationId: id,
-        name: z.string().trim().min(2).max(100),
-        species: z.enum(["poultry", "catfish"]),
-        stage: z.string().min(2).max(100),
-        source: z.string().trim().min(10).max(2000),
-        basis: z.enum(["as-fed", "dry-matter"]),
-        energySystem: z.enum(["ME", "DE"]),
-        phosphorusBasis: z.enum(["total", "available", "digestible"]),
-        limits,
-      })
-      .parse(await jsonBody(request));
-    // Six critical specs must be explicit; dry matter is optional, never inferred.
-    for (const k of [
-      "energy",
-      "protein",
-      "calcium",
-      "phosphorus",
-      "methionine",
-      "lysine",
-    ] as const)
-      if (!input.limits[k]) fail(400, `Provide an explicit ${k} requirement.`);
-    return NextResponse.json(
-      await tenant(user.id, async (c) => {
-        if (
-          (
-            await c.query("SELECT member_role($1) AS role", [
-              input.organizationId,
-            ])
-          ).rows[0].role !== "nutritionist"
-        )
-          fail(
-            403,
-            "Only a nutritionist can register a reviewed requirement profile.",
-          );
-        const r = await c.query(
-          "INSERT INTO requirement_profiles(organization_id,name,species,stage,source,basis,energy_system,limits,reviewer_id,phosphorus_basis) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id",
-          [
-            input.organizationId,
-            input.name,
-            input.species,
-            input.stage,
-            input.source,
-            input.basis,
-            input.energySystem,
-            JSON.stringify(input.limits),
-            user.id,
-            input.phosphorusBasis,
-          ],
-        );
-        await audit(c, input.organizationId, "profile.created", r.rows[0].id);
-        return r.rows[0];
-      }),
-      { status: 201 },
-    );
-  }
   if (
     ["formulas/calculate", "formulas/save", "formulas/optimize"].includes(
       path,
@@ -468,12 +395,20 @@ export async function feedApi(
             input.lines,
             profile.limits,
             input.batchKg,
+            profile.ingredient_rules,
           ).catch((e) => fail(422, (e as Error).message));
           const r = await c.query(
             "INSERT INTO optimization_runs(organization_id,request,result) VALUES($1,$2,$3) RETURNING id",
             [
               input.organizationId,
-              JSON.stringify(input),
+              JSON.stringify({
+                ...input,
+                profileSnapshot: profile,
+                ingredientSnapshot: ingredients.filter((i) =>
+                  input.lines.some((l) => l.ingredientId === i.id),
+                ),
+                modelVersion: 2,
+              }),
               JSON.stringify(result),
             ],
           );
@@ -493,13 +428,21 @@ export async function feedApi(
         const checks = profile
           ? compliance(calculation.nutrients, profile.limits)
           : [];
+        const ruleIssues = profileRuleIssues(
+          input.lines,
+          ingredients,
+          profile?.ingredient_rules ?? [],
+        );
         const result = {
           ...calculation,
+          issues: [...calculation.issues, ...ruleIssues],
+          profileSnapshot: profile,
           compliance: checks,
           profileName: profile?.name ?? null,
-          modelVersion: 1,
+          modelVersion: 2,
           releaseEligible:
             calculation.releaseEligible &&
+            ruleIssues.length === 0 &&
             !!profile &&
             checks.every((v) => v.status === "pass"),
         };

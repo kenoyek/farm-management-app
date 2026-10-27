@@ -1710,3 +1710,25 @@ textarea {
   flex-basis: 100%;
   color: var(--muted);
 }
+
+.specification-card {
+  border-top: 1px solid var(--line);
+  padding: 18px 0;
+}
+.specification-card summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.source-reference {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ingredient-rule-editor {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 14px 0;
+}
+.profile-rules {
+  margin: 14px 0;
+}

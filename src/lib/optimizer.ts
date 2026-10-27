@@ -1,3 +1,8 @@
+import {
+  applyProfileBounds,
+  profileRuleIssues,
+  type IngredientRule,
+} from "./profile-rules";
 import { spawn } from "node:child_process";
 import {
   nutrientKeys,
@@ -12,7 +17,11 @@ export async function optimize(
   lines: FormulaLine[],
   limits: Limits,
   batchKg: number,
+  rules: IngredientRule[] = [],
 ) {
+  if (!Number.isFinite(batchKg) || batchKg <= 0)
+    throw Error("Batch weight must be greater than zero.");
+  lines = applyProfileBounds(lines, rules);
   const selected = lines.map((l) => {
     const ingredient = ingredients.find((i) => i.id === l.ingredientId);
     if (!ingredient) throw Error("Ingredient not found.");
@@ -64,7 +73,7 @@ export async function optimize(
       fractions: null,
       solver: "constraint-precheck",
       message:
-        "Ingredient minimums, maximums or available stock conflict with the 100% batch requirement.",
+        "Ingredient/profile minimums, maximums or available stock conflict with the 100% batch requirement.",
     };
   const payload = {
     cost: selected.map((i) => Number(i.price)),
@@ -118,8 +127,12 @@ export async function optimize(
     percent: solution.fractions![index] * 100,
   }));
   const calculation = calculateFormula(optimized, selected, batchKg);
+  const ruleIssues = profileRuleIssues(optimized, ingredients, rules);
+  calculation.issues.push(...ruleIssues);
+  calculation.releaseEligible = calculation.issues.length === 0;
   const checks = compliance(calculation.nutrients, limits);
   if (
+    ruleIssues.length > 0 ||
     Math.abs(calculation.totalPercent - 100) > 1e-6 ||
     checks.some((c) => c.status !== "pass") ||
     optimized.some(

@@ -2,6 +2,8 @@
 import { useFeedDraft } from "@/lib/use-feed-draft";
 import type { DraftContent } from "@/lib/draft-schema";
 import WorkbookUpload from "./workbook-upload";
+import Specifications, { ProfileRules } from "./specifications";
+import type { RequirementProfile } from "@/lib/profile-rules";
 import SourceCatalog from "./source-catalog";
 import { useDialog } from "@/lib/use-dialog";
 import { useEffect, useState, useCallback, type FormEvent } from "react";
@@ -18,7 +20,6 @@ import {
   nutrientKeys,
   type Ingredient,
   type FormulaLine,
-  type Limits,
   type Nutrients,
   type compliance,
 } from "@/lib/feed";
@@ -34,7 +35,6 @@ type Result = {
   quantities: { name: string; kg: number; percent: number }[];
   compliance: ReturnType<typeof compliance>;
 };
-type Profile = { id: string; name: string; limits: Limits };
 type Recipe = {
   id: string;
   name: string;
@@ -47,7 +47,7 @@ type Recipe = {
 };
 type FeedData = {
   ingredients: Ingredient[];
-  profiles: Profile[];
+  profiles: RequirementProfile[];
   formulas: Recipe[];
   imports: { id: string }[];
 };
@@ -87,8 +87,7 @@ export default function FeedStudio({
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
     [preview, setPreview] = useState<Preview | null>(null),
-    [ingredientModal, setIngredientModal] = useState(false),
-    [profileModal, setProfileModal] = useState(false);
+    [ingredientModal, setIngredientModal] = useState(false);
   const [editing, setEditing] = useState<Ingredient | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [lines, setLines] = useState<FormulaLine[]>([]),
@@ -98,10 +97,9 @@ export default function FeedStudio({
     [parentId, setParentId] = useState<string | null>(null),
     [result, setResult] = useState<Result | null>(null),
     [status, setStatus] = useState("draft");
-  useDialog(ingredientModal || profileModal, () => {
+  useDialog(ingredientModal, () => {
     if (!busy) {
       setIngredientModal(false);
-      setProfileModal(false);
     }
   });
   const canEdit = ["owner", "admin", "nutritionist"].includes(role);
@@ -129,6 +127,7 @@ export default function FeedStudio({
     restoreDraft,
   );
 
+  const selectedProfile = data.profiles.find((p) => p.id === profileId);
   const currentIngredients = data.ingredients.filter(
     (i) => !data.ingredients.some((next) => next.parent_id === i.id),
   );
@@ -226,6 +225,7 @@ export default function FeedStudio({
         {[
           "Formulator",
           "Ingredients",
+          "Specifications",
           "Source catalog",
           "Recipe library",
           "Workbook import",
@@ -379,14 +379,31 @@ export default function FeedStudio({
                     }}
                   >
                     <option value="">No reviewed profile selected</option>
-                    {data.profiles.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
+                    {data.profiles
+                      .filter(
+                        (p) =>
+                          p.id === profileId ||
+                          !data.profiles.some(
+                            (next) => next.parent_id === p.id,
+                          ),
+                      )
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} · v{p.revision}
+                          {data.profiles.some((next) => next.parent_id === p.id)
+                            ? " · historical"
+                            : ""}
+                        </option>
+                      ))}
                   </select>
                 </label>
               </div>
+              {selectedProfile && (
+                <ProfileRules
+                  profile={selectedProfile}
+                  ingredients={data.ingredients}
+                />
+              )}
               <div className="table-scroll">
                 <table>
                   <thead>
@@ -430,7 +447,11 @@ export default function FeedStudio({
                                   (d) =>
                                     currentIngredients.some(
                                       (i) => i.id === d.id,
-                                    ) || d.id === l.ingredientId,
+                                    ) ||
+                                    d.id === l.ingredientId ||
+                                    selectedProfile?.ingredient_rules.some(
+                                      (r) => r.ingredientId === d.id,
+                                    ),
                                 )
                                 .map((d) => (
                                   <option key={d.id} value={d.id}>
@@ -749,6 +770,15 @@ export default function FeedStudio({
           </fieldset>
         </>
       )}
+      {tab === "Specifications" && (
+        <Specifications
+          organizationId={organizationId}
+          profiles={data.profiles}
+          ingredients={data.ingredients}
+          nutritionist={nutritionist}
+          refresh={refresh}
+        />
+      )}
       {tab === "Source catalog" && (
         <SourceCatalog organizationId={organizationId} canEdit={canEdit} />
       )}
@@ -763,9 +793,9 @@ export default function FeedStudio({
               {nutritionist && (
                 <button
                   className="secondary"
-                  onClick={() => setProfileModal(true)}
+                  onClick={() => setTab("Specifications")}
                 >
-                  Add specification
+                  Review specifications
                 </button>
               )}
               <button
@@ -1195,159 +1225,6 @@ export default function FeedStudio({
               )}
               <button className="primary" disabled={busy}>
                 {editing ? "Save reference revision" : "Save new reference"}
-              </button>
-            </form>
-          </section>
-        </div>
-      )}
-      {profileModal && (
-        <div className="modal-backdrop">
-          <section
-            className="modal panel wide-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-title"
-          >
-            <div className="panel-heading">
-              <h2 id="profile-title">Reviewed nutritional specification</h2>
-              <button
-                className="text-button"
-                onClick={() => setProfileModal(false)}
-              >
-                Close
-              </button>
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                void run(async () => {
-                  const limits = Object.fromEntries(
-                    nutrientKeys
-                      .map((k) => [
-                        k,
-                        Object.fromEntries(
-                          ["min", "max"]
-                            .filter((bound) => f.get(`${k}.${bound}`) !== "")
-                            .map((bound) => [
-                              bound,
-                              Number(f.get(`${k}.${bound}`)),
-                            ]),
-                        ),
-                      ])
-                      .filter(([, v]) => Object.keys(v).length),
-                  );
-                  await api("profiles", {
-                    organizationId,
-                    name: f.get("name"),
-                    species: f.get("species"),
-                    stage: f.get("stage"),
-                    source: f.get("source"),
-                    basis: f.get("basis"),
-                    energySystem: f.get("energySystem"),
-                    phosphorusBasis: f.get("phosphorusBasis"),
-                    limits,
-                  });
-                  await refresh();
-                  setProfileModal(false);
-                  setNotice("Reviewed specification registered.");
-                });
-              }}
-            >
-              <div className="form-grid">
-                <label>
-                  Profile name
-                  <input name="name" required minLength={2} />
-                </label>
-                <label>
-                  Species
-                  <select name="species">
-                    <option value="poultry">Poultry</option>
-                    <option value="catfish">Catfish</option>
-                  </select>
-                </label>
-                <label>
-                  Production stage
-                  <input
-                    name="stage"
-                    required
-                    minLength={2}
-                    placeholder="e.g. broiler-starter"
-                  />
-                </label>
-                <label>
-                  Phosphorus basis
-                  <select name="phosphorusBasis">
-                    <option value="total">Total</option>
-                    <option value="available">Available</option>
-                    <option value="digestible">Digestible</option>
-                  </select>
-                </label>
-                <label>
-                  Nutrient basis
-                  <select name="basis">
-                    <option value="as-fed">As-fed</option>
-                    <option value="dry-matter">Dry matter</option>
-                  </select>
-                </label>
-                <label>
-                  Energy system
-                  <select name="energySystem">
-                    <option value="ME">ME</option>
-                    <option value="DE">DE</option>
-                  </select>
-                </label>
-              </div>
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Nutrient</th>
-                      <th>Minimum</th>
-                      <th>Maximum</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {nutrientKeys.map((k) => (
-                      <tr key={k}>
-                        <td>{labels[k]}</td>
-                        {["min", "max"].map((b) => (
-                          <td key={b}>
-                            <input
-                              aria-label={`${k} ${b}`}
-                              name={`${k}.${b}`}
-                              type="number"
-                              min="0"
-                              step="0.0001"
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <label className="field">
-                Reviewed source reference
-                <textarea
-                  name="source"
-                  required
-                  minLength={10}
-                  maxLength={2000}
-                />
-              </label>
-              <p className="helper">
-                Specify an explicit limit for every nutrient except optional dry
-                matter. Approve only species- and stage-appropriate, compatible
-                reference data.
-              </p>
-              {error && (
-                <p className="error" role="alert">
-                  {error}
-                </p>
-              )}
-              <button className="primary" disabled={busy}>
-                Register reviewed profile
               </button>
             </form>
           </section>
