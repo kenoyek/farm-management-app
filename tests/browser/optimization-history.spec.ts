@@ -172,7 +172,7 @@ test("explains infeasibility, preserves run evidence and restores scenarios as d
     );
     expect(record.result.status).toBe("infeasible");
     expect(record.result.fractions).toBeNull();
-    expect(record.request.modelVersion).toBe(4);
+    expect(record.request.modelVersion).toBe(5);
     expect(record.request.lines[1].availableKg).toBe(10);
     expect(record.request.ingredientSnapshot).toHaveLength(2);
     page.once("dialog", (dialog) => void dialog.accept());

@@ -1,6 +1,7 @@
 "use client";
 import type { OptimizationView } from "@/lib/optimization-history";
 import { nutrientLabels } from "@/lib/recipe-reports";
+import ProcessingGroups from "./processing-groups";
 
 const value = (n: number) => Number(n.toFixed(6)).toString();
 export default function OptimizationEvidence({
@@ -94,8 +95,8 @@ export default function OptimizationEvidence({
           <h3>Individual nutrient ranges</h3>
           <p className="helper">
             Each range uses the ingredient bounds and 100% total, without the
-            other nutrient limits. It is a necessary condition, not proof that
-            all targets can be met together.
+            other nutrient limits or processing group constraints. It is a
+            necessary condition, not proof that all targets can be met together.
           </p>
           <div className="table-scroll">
             <table>
@@ -123,6 +124,7 @@ export default function OptimizationEvidence({
           </div>
         </>
       )}
+      <ProcessingGroups groups={view.processingGroups} />
       {view.bindingConstraints.length > 0 && (
         <p className="helper">
           Binding constraints: {view.bindingConstraints.join("; ")}

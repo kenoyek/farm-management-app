@@ -159,9 +159,9 @@ afterAll(async () => {
   await pool.end();
   await admin.end();
 });
-it("records real optimal and diagnostic-only infeasible runs with immutable model-4 evidence", async () => {
+it("records real optimal and diagnostic-only infeasible runs with immutable model-5 evidence", async () => {
   const detail = await (await get(owner, org, optimalRun)).json();
-  expect(detail.record.request.modelVersion).toBe(4);
+  expect(detail.record.request.modelVersion).toBe(5);
   expect(detail.record.request.profileSnapshot.id).toBe(profile);
   expect(detail.record.request.ingredientSnapshot).toHaveLength(2);
   expect(detail.view).toMatchObject({

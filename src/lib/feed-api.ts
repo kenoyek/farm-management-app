@@ -23,6 +23,11 @@ import reference from "../../data/ingredients.json";
 import workbooks from "../../data/workbook-audit.json";
 import { nutrientDefinitions, nutrientRegistryVersion } from "./nutrients";
 import { sourceRecipeApi } from "./source-recipe-api";
+import {
+  processingMethod,
+  processingCompliance,
+  processingRuleIssues,
+} from "./processing";
 const nullable = z.number().finite().nonnegative().nullable();
 const nutrients = z
   .object({
@@ -302,8 +307,25 @@ export async function feedApi(
           .nullable()
           .optional()
           .default(null),
+        processingMethod: processingMethod.nullable().optional().default(null),
+        processingEvidence: z
+          .string()
+          .trim()
+          .min(10)
+          .max(2000)
+          .nullable()
+          .optional()
+          .default(null),
       })
       .parse(await jsonBody(request));
+    if (
+      (input.processingMethod === null) !==
+      (input.processingEvidence === null)
+    )
+      fail(
+        400,
+        "Record the processing method and supporting evidence together, or leave both unknown.",
+      );
     if (
       input.laboratoryOn &&
       input.laboratoryOn > new Date().toISOString().slice(0, 10)
@@ -346,7 +368,7 @@ export async function feedApi(
           revision = previous.revision + 1;
         }
         const r = await c.query(
-          "INSERT INTO ingredients(organization_id,name,source,nutrients,price,basis,energy_system,review_status,verified_at,reviewer_id,species,stages,phosphorus_basis,quoted_on,inclusion_min,inclusion_max,parent_id,revision,category,supplier,laboratory_on,certificate_reference,processing_notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id",
+          "INSERT INTO ingredients(organization_id,name,source,nutrients,price,basis,energy_system,review_status,verified_at,reviewer_id,species,stages,phosphorus_basis,quoted_on,inclusion_min,inclusion_max,parent_id,revision,category,supplier,laboratory_on,certificate_reference,processing_notes,processing_method,processing_evidence) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25) RETURNING id",
           [
             input.organizationId,
             input.name,
@@ -371,6 +393,8 @@ export async function feedApi(
             input.laboratoryOn,
             input.certificateReference,
             input.processingNotes,
+            input.processingMethod,
+            input.processingEvidence,
           ],
         );
         await audit(
@@ -471,6 +495,7 @@ export async function feedApi(
             profile.limits,
             input.batchKg,
             profile.ingredient_rules,
+            profile.processing_rules ?? [],
           ).catch((e) => fail(422, (e as Error).message));
           const r = await c.query(
             "INSERT INTO optimization_runs(organization_id,request,result) VALUES($1,$2,$3) RETURNING id",
@@ -482,7 +507,7 @@ export async function feedApi(
                 ingredientSnapshot: ingredients.filter((i) =>
                   input.lines.some((l) => l.ingredientId === i.id),
                 ),
-                modelVersion: 4,
+                modelVersion: 5,
                 nutrientRegistryVersion,
                 nutrientDefinitions,
               }),
@@ -516,18 +541,36 @@ export async function feedApi(
           ingredients,
           profile?.ingredient_rules ?? [],
         );
+        const processingChecks = processingCompliance(
+          input.lines,
+          profile?.processing_rules ?? [],
+        );
+        const processingIssues = processingRuleIssues(
+          profile?.processing_rules ?? [],
+          ingredients,
+          (profile?.ingredient_rules ?? []).map(
+            (r: { ingredientId: string }) => r.ingredientId,
+          ),
+        );
+        for (const check of processingChecks)
+          if (check.status !== "pass")
+            processingIssues.push(
+              `${check.name}: processing group requires ${check.minPercent}–${check.maxPercent}% (actual ${check.actualPercent}%).`,
+            );
         const result = {
           ...calculation,
-          issues: [...calculation.issues, ...ruleIssues],
+          issues: [...calculation.issues, ...ruleIssues, ...processingIssues],
           profileSnapshot: profile,
           compliance: checks,
           profileName: profile?.name ?? null,
-          modelVersion: 3,
+          modelVersion: 4,
+          processingCompliance: processingChecks,
           nutrientRegistryVersion,
           nutrientDefinitions,
           releaseEligible:
             calculation.releaseEligible &&
             ruleIssues.length === 0 &&
+            processingIssues.length === 0 &&
             !!profile &&
             checks.every((v) => v.status === "pass"),
         };

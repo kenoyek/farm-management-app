@@ -8,6 +8,11 @@ import {
   type compliance,
 } from "./feed";
 import { applyProfileBounds, type IngredientRule } from "./profile-rules";
+import {
+  processingRuleIssues,
+  type ProcessingRule,
+  type ProcessingCheck,
+} from "./processing";
 
 export type BoundSource = {
   source: "scenario" | "ingredient" | "profile" | "availability";
@@ -36,6 +41,7 @@ export type Diagnostic = {
     | "nutrient-minimum"
     | "nutrient-maximum"
     | "combined-constraints";
+  // Processing bounds are aggregate limits, not individual ingredient caps.
   message: string;
   ingredientId?: string;
   nutrient?: Nutrient;
@@ -56,6 +62,7 @@ export type OptimizationResult = {
   reachability: Reachability[];
   diagnostics: Diagnostic[];
   runId?: string;
+  processingGroups?: ProcessingCheck[];
 } & (
   | {
       status: "optimal";
@@ -107,6 +114,7 @@ export function diagnoseConstraints(
   limits: Limits,
   batchKg: number,
   rules: IngredientRule[] = [],
+  processingRules: ProcessingRule[] = [],
 ) {
   if (!Number.isFinite(batchKg) || batchKg <= 0)
     throw Error("Batch weight must be greater than zero.");
@@ -117,6 +125,12 @@ export function diagnoseConstraints(
   )
     throw Error("Choose one to 100 unique ingredient references.");
   applyProfileBounds(lines, rules); // Required references and the closed allowed list.
+  const processingIssues = processingRuleIssues(
+    processingRules,
+    ingredients,
+    rules.map((r) => r.ingredientId),
+  );
+  if (processingIssues.length) throw Error(processingIssues.join(" "));
   const effectiveBounds: EffectiveBound[] = lines.map((l) => {
     const i = ingredients.find((i) => i.id === l.ingredientId);
     if (!i) throw Error("Ingredient not found.");
@@ -173,6 +187,35 @@ export function diagnoseConstraints(
       kind: "maximum-total",
       message: `Effective ingredient maxima total ${maxTotal}%, leaving a ${(100 - maxTotal).toFixed(6)} percentage-point shortfall.`,
     });
+  const baseBoundsValid = diagnostics.length === 0;
+  const processingGroups: ProcessingCheck[] = processingRules.map((rule) => {
+    const values = lines.map((l) =>
+      rule.ingredientIds.includes(l.ingredientId) ? 100 : 0,
+    );
+    const attainableMin = baseBoundsValid
+      ? extreme(values, effectiveBounds, false)
+      : null;
+    const attainableMax = baseBoundsValid
+      ? extreme(values, effectiveBounds, true)
+      : null;
+    if (
+      attainableMin !== null &&
+      attainableMax !== null &&
+      (rule.minPercent > attainableMax + 1e-7 ||
+        rule.maxPercent < attainableMin - 1e-7)
+    )
+      diagnostics.push({
+        kind: "combined-constraints",
+        message: `${rule.name}: processing group requires ${rule.minPercent}–${rule.maxPercent}% but can reach only ${attainableMin.toFixed(6)}–${attainableMax.toFixed(6)}% under the ingredient bounds and 100% total.`,
+      });
+    return {
+      ...rule,
+      actualPercent: null,
+      status: "not-solved",
+      attainableMin,
+      attainableMax,
+    };
+  });
   const reachability: Reachability[] = [];
   if (!diagnostics.length)
     for (const n of nutrientKeys.filter((n) => limits[n])) {
@@ -222,9 +265,10 @@ export function diagnoseConstraints(
         });
     }
   return {
-    diagnosticModelVersion: 1,
+    diagnosticModelVersion: processingRules.length ? 2 : 1,
     effectiveBounds,
     reachability,
     diagnostics,
+    processingGroups,
   };
 }

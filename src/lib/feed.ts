@@ -29,6 +29,8 @@ export type Ingredient = {
   laboratory_on?: string | null;
   certificate_reference?: string | null;
   processing_notes?: string | null;
+  processing_method?: string | null;
+  processing_evidence?: string | null;
 };
 export type FormulaLine = {
   ingredientId: string;

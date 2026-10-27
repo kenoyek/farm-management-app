@@ -188,6 +188,15 @@ it("uses immutable profile references for older versions and refuses mismatched 
   const raw = fixture();
   raw.result.profileSnapshot = undefined;
   expect(recipeReport(raw).profileEvidence).toBe("immutable profile reference");
+  expect(
+    recipeReport({
+      ...raw,
+      profile_reference: {
+        ...(raw.profile_reference as object),
+        processing_rules: [],
+      },
+    }),
+  ).toEqual(recipeReport(raw));
   expect(() => recipeReport({ ...raw, profile_id: randomUUID() })).toThrow(
     /does not match/,
   );

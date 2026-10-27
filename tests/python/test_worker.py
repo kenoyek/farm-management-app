@@ -40,8 +40,8 @@ def test_worker_handles_one_hundred_candidates_with_a_real_objective():
     assert result['objective'] == pytest.approx(1)
     assert result['fractions'][0] == pytest.approx(1)
 
-def test_worker_enforces_eleven_nutrient_rows_and_rejects_an_unbounded_registry():
-    constraints = [{'values': [20, 20], 'min': 10}] * 10 + [{'values': [2, 10], 'min': 4}]
+def test_worker_enforces_thirty_one_rows_and_rejects_an_unbounded_registry():
+    constraints = [{'values': [20, 20], 'min': 10}] * 30 + [{'values': [2, 10], 'min': 4}]
     payload = {'cost': [100, 300], 'bounds': [[0, 1], [0, 1]], 'constraints': constraints}
     run = subprocess.run([sys.executable, 'scripts/optimize.py'], input=json.dumps(payload), text=True, capture_output=True, timeout=20, check=True)
     result = json.loads(run.stdout)

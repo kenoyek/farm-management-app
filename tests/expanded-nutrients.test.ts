@@ -68,6 +68,17 @@ it("retains the pre-expansion digest of a legacy saved recipe", () => {
   expect(digest).toBe(
     "ccc19eff009524ea6aa7a3f63479884d17cf51fc145459786d6e43e3b2a13cc8",
   );
+  const legacy = legacyRecipe();
+  expect(
+    recipeReport({
+      ...legacy,
+      ingredient_snapshot: legacy.ingredient_snapshot.map((i) => ({
+        ...i,
+        processing_method: null,
+        processing_evidence: null,
+      })),
+    }),
+  ).toEqual(recipeReport(legacy));
 });
 const reference = (
   id: string,

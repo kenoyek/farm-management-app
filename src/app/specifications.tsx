@@ -6,6 +6,7 @@ import { api, downloadJson } from "@/lib/client";
 import { useDialog } from "@/lib/use-dialog";
 import { nutrientKeys, type Ingredient } from "@/lib/feed";
 import type { RequirementProfile } from "@/lib/profile-rules";
+import ProcessingGroups from "./processing-groups";
 
 const labels = nutrientLabels;
 const ingredientLabel = (i: Ingredient) =>
@@ -175,6 +176,7 @@ export default function Specifications({
                 </table>
               </div>
               <ProfileRules profile={p} ingredients={ingredients} />
+              <ProcessingGroups groups={p.processing_rules ?? []} />
               <div className="button-row">
                 <button
                   className="secondary"
@@ -249,6 +251,12 @@ function ProfileEditor({
       ...r,
     })),
   );
+  const [groups, setGroups] = useState(() =>
+    (previous?.processing_rules ?? []).map((r) => ({
+      ...r,
+      key: crypto.randomUUID(),
+    })),
+  );
   useDialog(true, () => {
     if (!busy) close();
   });
@@ -286,6 +294,14 @@ function ProfileEditor({
           min: Number(f.get(`${r.key}.min`)),
           max: Number(f.get(`${r.key}.max`)),
           source: f.get(`${r.key}.source`),
+        })),
+        processingRules: groups.map((g) => ({
+          name: f.get(`pg.${g.key}.name`),
+          ingredientIds: f.getAll(`pg.${g.key}.members`),
+          minPercent: Number(f.get(`pg.${g.key}.min`)),
+          maxPercent: Number(f.get(`pg.${g.key}.max`)),
+          requiredMethod: f.get(`pg.${g.key}.method`) || null,
+          source: f.get(`pg.${g.key}.source`),
         })),
       });
       await saved();
@@ -525,6 +541,124 @@ function ProfileEditor({
             >
               <Plus size={14} />
               Add ingredient rule
+            </button>
+            <h3>Processing group limits</h3>
+            <p className="helper">
+              Optional reviewed limits on the combined inclusion of exact
+              references. List every permitted candidate in Ingredient rules
+              first. Group members must be on that allowed list; overlapping
+              groups are enforced together. A required method must match the
+              recorded method and evidence on each approved member. No notes,
+              temperatures or thresholds are inferred.
+            </p>
+            {groups.map((g, index) => (
+              <div className="ingredient-rule-editor" key={g.key}>
+                <div className="form-grid">
+                  <label>
+                    Processing group {index + 1} name
+                    <input
+                      name={`pg.${g.key}.name`}
+                      required
+                      minLength={2}
+                      maxLength={100}
+                      defaultValue={g.name}
+                    />
+                  </label>
+                  <label>
+                    Processing group {index + 1} members
+                    <select
+                      aria-label={`Processing group ${index + 1} members`}
+                      name={`pg.${g.key}.members`}
+                      multiple
+                      required
+                      defaultValue={g.ingredientIds}
+                      size={5}
+                    >
+                      {ingredients
+                        .filter((i) => i.review_status === "approved")
+                        .map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {ingredientLabel(i)}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    Processing group {index + 1} minimum %
+                    <input
+                      name={`pg.${g.key}.min`}
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="any"
+                      required
+                      defaultValue={g.minPercent}
+                    />
+                  </label>
+                  <label>
+                    Processing group {index + 1} maximum %
+                    <input
+                      name={`pg.${g.key}.max`}
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="any"
+                      required
+                      defaultValue={g.maxPercent}
+                    />
+                  </label>
+                  <label>
+                    Processing group {index + 1} required method
+                    <input
+                      name={`pg.${g.key}.method`}
+                      pattern="[a-z][a-z0-9-]{0,49}"
+                      maxLength={50}
+                      defaultValue={g.requiredMethod ?? ""}
+                      placeholder="Leave blank for no method requirement"
+                    />
+                  </label>
+                </div>
+                <label className="field">
+                  Processing group {index + 1} review evidence
+                  <textarea
+                    name={`pg.${g.key}.source`}
+                    required
+                    minLength={10}
+                    maxLength={2000}
+                    defaultValue={g.source}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() =>
+                    setGroups((rs) => rs.filter((r) => r.key !== g.key))
+                  }
+                >
+                  Remove processing group {index + 1}
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="secondary"
+              disabled={groups.length >= 20}
+              onClick={() =>
+                setGroups((rs) => [
+                  ...rs,
+                  {
+                    key: crypto.randomUUID(),
+                    name: "",
+                    ingredientIds: [],
+                    minPercent: 0,
+                    maxPercent: 100,
+                    requiredMethod: null,
+                    source: "",
+                  },
+                ])
+              }
+            >
+              Add processing group
             </button>
             {error && (
               <p className="error" role="alert">

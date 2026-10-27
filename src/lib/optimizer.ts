@@ -6,6 +6,7 @@ import {
   type OptimizationResult,
 } from "./optimization-diagnostics";
 import { profileRuleIssues, type IngredientRule } from "./profile-rules";
+import { processingCompliance, type ProcessingRule } from "./processing";
 import { spawn } from "node:child_process";
 import {
   nutrientKeys,
@@ -22,6 +23,7 @@ export async function optimize(
   limits: Limits,
   batchKg: number,
   rules: IngredientRule[] = [],
+  processingRules: ProcessingRule[] = [],
 ): Promise<OptimizationResult> {
   if (!Number.isFinite(batchKg) || batchKg <= 0)
     throw Error("Batch weight must be greater than zero.");
@@ -77,6 +79,7 @@ export async function optimize(
     limits,
     batchKg,
     rules,
+    processingRules,
   );
   lines = lines.map((line, i) => ({
     ...line,
@@ -95,12 +98,21 @@ export async function optimize(
   const payload = {
     cost: selected.map((i) => Number(i.price)),
     bounds: lines.map((l) => [(l.min ?? 0) / 100, (l.max ?? 100) / 100]),
-    constraints: nutrientKeys
-      .filter((n) => limits[n])
-      .map((n) => ({
-        values: selected.map((i) => i.nutrients[n]),
-        ...limits[n],
+    constraints: [
+      ...nutrientKeys
+        .filter((n) => limits[n])
+        .map((n) => ({
+          values: selected.map((i) => i.nutrients[n]),
+          ...limits[n],
+        })),
+      ...processingRules.map((r) => ({
+        values: lines.map((l) =>
+          r.ingredientIds.includes(l.ingredientId) ? 100 : 0,
+        ),
+        min: r.minPercent,
+        max: r.maxPercent,
       })),
+    ],
   };
   const raw = await solvePayload(payload);
   const solution = z
@@ -153,6 +165,13 @@ export async function optimize(
   calculation.issues.push(...ruleIssues);
   calculation.releaseEligible = calculation.issues.length === 0;
   const checks = compliance(calculation.nutrients, limits);
+  const processingGroups = processingCompliance(optimized, processingRules).map(
+    (r, i) => ({ ...evidence.processingGroups[i], ...r }),
+  );
+  if (processingGroups.some((r) => r.status !== "pass"))
+    throw Error(
+      "Solver result failed independent processing constraint validation.",
+    );
   const totalPercentError = Math.abs(calculation.totalPercent - 100);
   const maximumBoundViolationPercent = Math.max(
     0,
@@ -180,6 +199,14 @@ export async function optimize(
   )
     throw Error("Solver result failed independent constraint validation.");
   const bindingConstraints = [
+    ...processingGroups.flatMap((g) => [
+      ...(Math.abs(g.actualPercent! - g.minPercent) < 1e-6
+        ? [`${g.name} processing minimum`]
+        : []),
+      ...(Math.abs(g.actualPercent! - g.maxPercent) < 1e-6
+        ? [`${g.name} processing maximum`]
+        : []),
+    ]),
     ...checks.flatMap((c) => [
       ...(c.actual !== null &&
       c.min !== undefined &&
@@ -207,6 +234,7 @@ export async function optimize(
     fractions: solution.fractions,
     objective: solution.objective,
     ...evidence,
+    processingGroups,
     validation: {
       totalPercentError,
       maximumBoundViolationPercent,

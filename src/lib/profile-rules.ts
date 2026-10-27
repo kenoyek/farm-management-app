@@ -1,4 +1,5 @@
 import type { FormulaLine, Ingredient, Limits } from "./feed";
+import type { ProcessingRule } from "./processing";
 
 export type IngredientRule = {
   ingredientId: string;
@@ -19,6 +20,7 @@ export type RequirementProfile = {
   phosphorus_basis: string;
   limits: Limits;
   ingredient_rules: IngredientRule[];
+  processing_rules?: ProcessingRule[];
   reviewer_id: string;
   created_at: string;
 };

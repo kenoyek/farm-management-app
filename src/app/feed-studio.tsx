@@ -11,6 +11,8 @@ import WorkbookUpload from "./workbook-upload";
 import Specifications, { ProfileRules } from "./specifications";
 import type { RequirementProfile } from "@/lib/profile-rules";
 import SourceCatalog from "./source-catalog";
+import ProcessingGroups from "./processing-groups";
+import type { ProcessingCheck } from "@/lib/processing";
 import { useDialog } from "@/lib/use-dialog";
 import { useEffect, useState, useCallback, type FormEvent } from "react";
 import {
@@ -38,6 +40,7 @@ type Result = {
   bag50: string | null;
   issues: string[];
   releaseEligible: boolean;
+  processingCompliance?: ProcessingCheck[];
   quantities: { name: string; kg: number; percent: number }[];
   compliance: ReturnType<typeof compliance>;
 };
@@ -223,6 +226,8 @@ export default function FeedStudio({
         laboratoryOn: f.get("laboratoryOn") || null,
         certificateReference: f.get("certificateReference") || null,
         processingNotes: f.get("processingNotes") || null,
+        processingMethod: f.get("processingMethod") || null,
+        processingEvidence: f.get("processingEvidence") || null,
       });
       await refresh();
       setIngredientModal(false);
@@ -677,6 +682,7 @@ export default function FeedStudio({
                         setResult({
                           ...r.calculation,
                           compliance: r.compliance ?? [],
+                          processingCompliance: r.processingGroups ?? [],
                         });
                         setNotice(
                           "HiGHS found an optimum. Review the formulation before approval.",
@@ -791,6 +797,9 @@ export default function FeedStudio({
                       </tbody>
                     </table>
                   </div>
+                  <ProcessingGroups
+                    groups={result.processingCompliance ?? []}
+                  />
                   {result.issues.length > 0 && (
                     <div className="validation-issues">
                       <strong>Review before use</strong>
@@ -1243,7 +1252,27 @@ export default function FeedStudio({
                     defaultValue={editing?.certificate_reference ?? ""}
                   />
                 </label>
+                <label>
+                  Recorded processing method
+                  <input
+                    name="processingMethod"
+                    pattern="[a-z][a-z0-9-]{0,49}"
+                    maxLength={50}
+                    defaultValue={editing?.processing_method ?? ""}
+                    placeholder="e.g. heat-treated; leave unknown if undocumented"
+                  />
+                </label>
               </div>
+              <label className="field">
+                Processing method evidence
+                <textarea
+                  name="processingEvidence"
+                  minLength={10}
+                  maxLength={2000}
+                  defaultValue={editing?.processing_evidence ?? ""}
+                  placeholder="Record process specification or certificate evidence. Do not infer this from general notes."
+                />
+              </label>
               <label className="field">
                 Quality and processing notes
                 <textarea

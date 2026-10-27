@@ -72,7 +72,7 @@ The parser requires the locked Python dependencies, including defusedxml, and Li
 
 In Feed studio → Specifications, assigned nutritionists register nutrient requirements and optional ingredient rules with source evidence. Positive minima require an ingredient, equal minima/maxima fix its inclusion and a maximum of zero excludes it. Once rules are present, list every permitted ingredient reference; unlisted references are refused. Rules use exact ingredient versions, so a revised quotation needs explicit review in a new profile revision. Ingredient limits, scenario bounds and availability can only tighten profile limits.
 
-Use **Revise specification** to append a reviewed version. History and JSON downloads preserve source evidence; existing recipe approvals and solver inputs retain the old version. Historical references required by a selected profile remain selectable in the formulator. Manual rule violations prevent approval, and optimizer conflicts never relax reviewed bounds. Profiles without rules retain the existing reviewed-ingredient selection checks. These limits do not replace qualified scientific review, processing constraints or stock reservations.
+Use **Revise specification** to append a reviewed version. History and JSON downloads preserve source evidence; existing recipe approvals and solver inputs retain the old version. Historical references required by a selected profile remain selectable in the formulator. Manual rule violations prevent approval, and optimizer conflicts never relax reviewed bounds. Profiles without rules retain the existing reviewed-ingredient selection checks. These limits do not replace qualified scientific review or stock reservations.
 
 
 ## Compare saved recipes and download mixing sheets
@@ -81,7 +81,7 @@ Feed studio → Recipe library lists the latest 100 saved versions. Select two t
 
 The CSV/XLSX buttons on each saved recipe download its original batch, exact reference IDs, status, saved nutrients/costs, source evidence, bounds and specification. Excel has four worksheets and stores monetary values as decimal text to preserve precision. Unknowns are blank, zeros are retained and formula-like names remain text. A snapshot-data SHA-256 identifies the report evidence. Later quotations or profile revisions do not update these exports. New versions record the saving actor; older versions may lack that metadata. Reports are available only to current organization members, including auditors.
 
-Draft/pending/rejected reports are marked NOT APPROVED. Approved reports describe a historical review, not a stock reservation or manufacturing release. Use the pinned Python environment for Excel exports; CSV requires only the Node application. PDF export, processing rules and integrated manufacturing remain future work.
+Draft/pending/rejected reports are marked NOT APPROVED. Approved reports describe a historical review, not a stock reservation or manufacturing release. Use the pinned Python environment for Excel exports; CSV requires only the Node application. PDF export and integrated manufacturing remain future work.
 
 
 ## Inspect optimizer diagnostics and past runs
@@ -114,3 +114,8 @@ Use **Ingredients → Revise reference** to record category, supplier/manufactur
 In **Source catalog → Broiler recipe mappings**, review mappings for each populated source row, then use **Preview recipe import**. Each original recipe has four supplied percentages and 30 unspecified inclusions. Check the preview and explicitly acknowledge omitting those blanks before **Import reviewed source as draft**. The import preserves the exact percentages, warnings and mapping/reference evidence; repeated confirmation creates no duplicate. Changed reviews require a new preview.
 
 Open **Recipe library** to inspect or clone the resulting draft. CSV/Excel include provenance, and imported versions have a fifth Source recipe audit worksheet with all original rows. Importing does not approve nutrition or manufacture feed; select and validate a reviewed specification before saving a new reviewed version.
+
+
+### Reviewed processing constraints
+
+Record a **Processing method** and supporting evidence together in Ingredients; leave both blank when unknown. Specifications can add up to twenty groups of exact allowed ingredient revisions, with explicit combined min/max percentages, optional required methods and source evidence. Only nutritionists may review these specifications. Unknown or mismatched methods block applicable groups; notes are never parsed into qualifications. Manual calculations, approval and genuine optimization enforce the combined bounds. Saved runs and CSV/XLSX retain their original groups/method evidence after revisions. These records do not certify an actual treatment or create a manufacturing event.

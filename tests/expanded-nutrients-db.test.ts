@@ -215,7 +215,7 @@ it("enforces all eleven constraints in real optimization and retains registry pr
   });
   const value = await accepted.json();
   recipe = value.id;
-  expect(value.modelVersion).toBe(3);
+  expect(value.modelVersion).toBe(4);
   expect(value.nutrientRegistryVersion).toBe(2);
 });
 it("rejects missing assessed nutrients instead of treating absent data as zero or approving it", async () => {

@@ -330,7 +330,7 @@ it("stores approval and real solver provenance against the exact profile version
   ).rows[0];
   expect(run.request.profileSnapshot.id).toBe(profile);
   expect(run.request.ingredientSnapshot).toHaveLength(2);
-  expect(run.request.modelVersion).toBe(4);
+  expect(run.request.modelVersion).toBe(5);
 });
 it("serializes competing revisions without changing historical approvals or rules", async () => {
   const revised = {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { nutrientKeys, type Nutrient, type Nutrients } from "./feed";
 import { coreNutrientKeys, nutrientLabels } from "./nutrients";
 import { sourceRecipeEvidence } from "./source-recipes";
+import { processingRules } from "./processing";
 export { nutrientLabels } from "./nutrients";
 
 const amount = z
@@ -44,6 +45,8 @@ const reference = z.object({
   laboratory_on: z.string().nullable().optional(),
   certificate_reference: z.string().nullable().optional(),
   processing_notes: z.string().nullable().optional(),
+  processing_method: z.string().nullable().optional(),
+  processing_evidence: z.string().nullable().optional(),
 });
 const range = z.object({
   min: z.number().finite().optional(),
@@ -76,6 +79,7 @@ const profileSchema = z.object({
       }),
     )
     .default([]),
+  processing_rules: processingRules.optional(),
 });
 const recipeSchema = z.object({
   id: z.uuid(),
@@ -123,6 +127,20 @@ const recipeSchema = z.object({
     profileSnapshot: z.unknown().optional(),
     savedBy: z.uuid().optional(),
     modelVersion: z.number().optional(),
+    processingCompliance: z
+      .array(
+        z.object({
+          name: z.string(),
+          ingredientIds: z.array(z.string()),
+          minPercent: z.number(),
+          maxPercent: z.number(),
+          requiredMethod: z.string().nullable(),
+          source: z.string(),
+          actualPercent: z.number().nullable(),
+          status: z.enum(["pass", "fail", "not-solved"]),
+        }),
+      )
+      .optional(),
   }),
   profile_reference: z.unknown().optional(),
   source_recipe: sourceRecipeEvidence.nullable().optional(),
@@ -140,6 +158,8 @@ export function recipeReport(raw: unknown) {
     throw Error("Duplicate saved allocations.");
   const profileRaw = recipe.result.profileSnapshot ?? recipe.profile_reference;
   const profile = profileRaw ? profileSchema.parse(profileRaw) : null;
+  // An empty newly added DB column must not change a legacy report digest.
+  if (profile?.processing_rules?.length === 0) delete profile.processing_rules;
   if (profile && profile.id !== recipe.profile_id)
     throw Error("Saved specification does not match the recipe.");
   const allocations = recipe.lines.map((l) => {
@@ -147,6 +167,13 @@ export function recipeReport(raw: unknown) {
       (i) => i.id === l.ingredientId,
     );
     if (!ingredient) throw Error("Saved ingredient evidence is missing.");
+    if (
+      ingredient.processing_method == null &&
+      ingredient.processing_evidence == null
+    ) {
+      delete ingredient.processing_method;
+      delete ingredient.processing_evidence;
+    }
     return {
       ...l,
       kg: new Decimal(l.percent).div(100).mul(recipe.batch_kg).toFixed(6),
@@ -155,6 +182,9 @@ export function recipeReport(raw: unknown) {
   });
   return {
     ...(recipe.source_recipe ? { sourceRecipe: recipe.source_recipe } : {}),
+    ...(recipe.result.processingCompliance?.length
+      ? { processingCompliance: recipe.result.processingCompliance }
+      : {}),
     id: recipe.id,
     name: recipe.name,
     status: recipe.status,
@@ -344,12 +374,20 @@ export function recipeSheets(
     ["Saved review issues"],
     ...report.issues.map((issue) => [issue]),
   ];
+  const hasProcessing = report.allocations.some(
+    (a) =>
+      Object.hasOwn(a.reference, "processing_method") ||
+      Object.hasOwn(a.reference, "processing_evidence"),
+  );
   const provenanceFields = [
     "category",
     "supplier",
     "laboratory_on",
     "certificate_reference",
     "processing_notes",
+    ...(hasProcessing
+      ? (["processing_method", "processing_evidence"] as const)
+      : []),
   ] as const;
   const hasProvenance = report.allocations.some((a) =>
     provenanceFields.some((k) => Object.hasOwn(a.reference, k)),
@@ -411,6 +449,9 @@ export function recipeSheets(
                 "Laboratory analysis date",
                 "Certificate / document",
                 "Quality / processing notes",
+                ...(hasProcessing
+                  ? ["Recorded processing method", "Processing method evidence"]
+                  : []),
               ]
             : []),
         ],
@@ -466,6 +507,36 @@ export function recipeSheets(
           r.max,
           r.source,
         ]),
+        ...((p?.processing_rules?.length ?? 0) > 0
+          ? [
+              [],
+              [
+                "Processing group",
+                "Exact references",
+                "Minimum %",
+                "Maximum %",
+                "Required method",
+                "Review evidence",
+                "Saved total %",
+                "Saved check",
+              ],
+              ...p!.processing_rules!.map((g) => {
+                const check = report.processingCompliance?.find(
+                  (c) => c.name === g.name,
+                );
+                return [
+                  g.name,
+                  g.ingredientIds.join(", "),
+                  g.minPercent,
+                  g.maxPercent,
+                  g.requiredMethod,
+                  g.source,
+                  check?.actualPercent ?? null,
+                  check?.status ?? "No saved check",
+                ];
+              }),
+            ]
+          : []),
       ],
     },
   ];

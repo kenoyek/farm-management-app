@@ -8,6 +8,18 @@ const source = z.object({
   source: z.enum(["scenario", "ingredient", "profile", "availability"]),
   percent: finite,
 });
+const processingGroup = z.object({
+  name: z.string(),
+  ingredientIds: z.array(z.string()),
+  minPercent: finite,
+  maxPercent: finite,
+  requiredMethod: z.string().nullable(),
+  source: z.string(),
+  actualPercent: finite.nullable(),
+  status: z.enum(["pass", "fail", "not-solved"]),
+  attainableMin: finite.nullable().optional(),
+  attainableMax: finite.nullable().optional(),
+});
 const viewSchema = z.object({
   status: z.enum([
     "optimal",
@@ -23,6 +35,7 @@ const viewSchema = z.object({
     .regex(/^\d+(?:\.\d+)?$/)
     .nullable(),
   diagnosticModelVersion: z.number().optional(),
+  processingGroups: z.array(processingGroup).default([]),
   effectiveBounds: z
     .array(
       z.object({

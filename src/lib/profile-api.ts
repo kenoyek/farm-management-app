@@ -4,6 +4,7 @@ import { tenant, audit } from "./db";
 import { id } from "./validation";
 import { jsonBody, fail } from "./http";
 import { coreNutrientKeys, type Ingredient } from "./feed";
+import { processingRules, processingRuleIssues } from "./processing";
 
 const range = z
   .object({
@@ -64,6 +65,7 @@ export const profileInput = z
     phosphorusBasis: z.enum(["total", "available", "digestible"]),
     limits,
     ingredientRules: z.array(rule).max(100).default([]),
+    processingRules: processingRules.default([]),
   })
   .strict()
   .refine(
@@ -170,9 +172,15 @@ export async function profileApi(
           422,
           "The allowed ingredient bounds cannot total 100%. Check minima, maxima and excluded references.",
         );
+      const processingIssues = processingRuleIssues(
+        input.processingRules,
+        ingredients,
+        input.ingredientRules.map((r) => r.ingredientId),
+      );
+      if (processingIssues.length) fail(422, processingIssues.join(" "));
       const row = (
         await c.query(
-          "INSERT INTO requirement_profiles(organization_id,name,species,stage,source,basis,energy_system,limits,reviewer_id,phosphorus_basis,parent_id,revision,ingredient_rules) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id",
+          "INSERT INTO requirement_profiles(organization_id,name,species,stage,source,basis,energy_system,limits,reviewer_id,phosphorus_basis,parent_id,revision,ingredient_rules,processing_rules) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id",
           [
             input.organizationId,
             input.name,
@@ -187,6 +195,7 @@ export async function profileApi(
             input.parentId ?? null,
             revision,
             JSON.stringify(input.ingredientRules),
+            JSON.stringify(input.processingRules),
           ],
         )
       ).rows[0];
