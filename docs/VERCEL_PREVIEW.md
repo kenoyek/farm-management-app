@@ -1,10 +1,10 @@
 # Vercel + Neon preview
 
-The deployment configuration and adapters are prepared and locally tested. A hosted URL is not established until both provider authentication flows, deployment, remote migrations and the external smoke checks below succeed. Network access and Vercel device authorization have been verified in this session. Neon was provisioned through the Vercel Marketplace on its Free plan. Database credential verification and app deployment are tracked separately below; no app preview is claimed until its external checks pass.
+The preview is live at **https://farmstead-preview.vercel.app**. It uses a dedicated Neon database and a separate authenticated Python worker. Hosted checks verify registration, secure sessions, persisted farm data, tenant isolation, genuine optimization, workbook upload/mapping and CSV/Excel reports. This is a development preview; the documented production release gates remain outstanding.
 
 ## Projects and data
 
-Use a new, dedicated Neon PostgreSQL 17 project/database for preview data, a Vercel Next.js project for this repository and a separate Vercel Python worker project. The app and worker are configured for US East (`iad1`), matching the provisioned Neon Marketplace resource. A direct Neon project can use `aws-us-east-1` alongside them. No existing user database, local account/session, local farm record or local password is copied into the preview.
+Use a new, dedicated Neon PostgreSQL 17 project/database for preview data, a Vercel Next.js project for this repository and a separate Vercel Python worker project. The app and worker run in US East (`iad1`). The Neon Marketplace resource reports `iad1`; the provisioned database endpoint is in AWS US East (Ohio). A direct Neon project can use `aws-us-east-1` alongside the compute projects. No existing user database, local account/session, local farm record or local password is copied into the preview.
 
 The Next.js Node runtime does not provide the local Python interpreter. The Python project runs the existing fixed solver/inspection/export scripts in resource-limited subprocesses. App-to-worker calls require a shared secret, use HTTPS without redirects, and bound both request and response bodies. The worker has no database credentials. Unknown operations and unauthenticated requests are rejected before starting a subprocess. Existing scientific gates, independent solver checks, workbook validation and immutable report behavior still run.
 
@@ -18,10 +18,10 @@ Required network destinations are `vercel.com`, `*.vercel.com`, `*.vercel.app`, 
 
 1. Create a dedicated Neon project. A supported CLI invocation is `neonctl projects create --name farmstead-preview --database farmstead_preview --pg-version 17 --region-id aws-us-east-1 --cu 0.25 --no-secrets`. Select the user's intended organization and retain the project ID. Do not print connection credentials in tool output (`--no-secrets` is important).
 2. Obtain its direct administrator connection URL securely and enter it as `PREVIEW_DATABASE_ADMIN_URL` in the cloud execution environment (or set `MIGRATION_DATABASE_URL` for the provisioning command only). The uniquely named preview variable does not affect ordinary local database setup. Use a private ignored environment file or the execution environment's secure variable entry, not a tracked file. The URL is not an app runtime credential.
-3. From this checkout run `node scripts/provision-preview-db.mjs`. It refuses unrelated data/migration history, applies pending migrations, creates/enables the restricted `farm_server` login, checks that direct tenant reads are denied, verifies `SET LOCAL ROLE farm_app` isolation, and writes only the runtime URL to `.local/preview-runtime.env` with mode 0600. Repeated runs reuse that credential. `PREVIEW_CREDENTIALS_FILE` can select a separate ignored/private file for another database.
+3. From a workspace with direct database access, run `node scripts/provision-preview-db.mjs`. This cloud workspace supports HTTPS/WSS egress, so its verified command is `NODE_USE_ENV_PROXY=1 PREVIEW_DATABASE_TRANSPORT=neon node scripts/provision-preview-db.mjs`. The optional Neon transport uses the official serverless WebSocket client and certificate verification; the application runtime continues to use native `pg`. `MIGRATION_DATABASE_TRANSPORT` explicitly overrides the preview transport (local database tests force `tcp`). It refuses unrelated data/migration history, applies pending migrations, creates/enables the restricted `farm_server` login, checks that direct tenant reads are denied, verifies `SET LOCAL ROLE farm_app` isolation, and writes only the runtime URL to `.local/preview-runtime.env` with mode 0600. Repeated runs reuse that credential. `PREVIEW_CREDENTIALS_FILE` can select a separate ignored/private file for another database.
 4. The runtime URL uses Neon's pooled host and `sslmode=verify-full`. Put this restricted URL into the **app** project's `DATABASE_URL`. Do not put `MIGRATION_DATABASE_URL`, Neon owner passwords or development database credentials in the app/worker environment.
 
-The provisioning helper was exercised on an isolated PostgreSQL 17 cluster using a database owner with CREATEROLE but no superuser privilege, including migrations, idempotence, actual owner-visible data versus another actor, restricted runtime access, unrelated-data refusal and credential-destination checks. Actual Neon connectivity still needs verification after login. Do not run integration/browser cleanup suites against the hosted database.
+The provisioning helper was exercised on an isolated PostgreSQL 17 cluster using a database owner with CREATEROLE but no superuser privilege, including migrations, idempotence, actual owner-visible data versus another actor, restricted runtime access, unrelated-data refusal and credential-destination checks. All twelve migrations were applied to the dedicated hosted Neon database, and restricted-runtime/tenant checks passed there. The administrator credential was entered through secure environment settings and was never installed in either Vercel runtime. Do not run integration/browser cleanup suites against the hosted database.
 
 ## Python worker deployment
 
@@ -36,7 +36,7 @@ The worker's environment does not need `DATABASE_URL`. Root-runtime CPU limits a
 
 Import/link `kenoyek/farm-management-app` as the Next.js project and use Node 24. `vercel.json` uses the existing locked npm install and production build. Migrations are run separately, not during every Vercel build. The runtime pool is capped at three connections per app instance, with connection and idle timeouts, and tenant operations still use transactions with local role/actor context.
 
-Set these **Preview** environment variables securely:
+For the live stable URL on this dedicated preview project, set these variables securely on both **Preview and Production** targets. The Production target publishes only this isolated preview app and its preview database; it does not change an existing customer production service. A protected generated preview alone needs only the Preview target.
 
 | Variable | Source |
 |---|---|
@@ -47,13 +47,13 @@ Set these **Preview** environment variables securely:
 
 Leave `APP_ORIGIN` unset for generated preview URLs: Vercel requests use HTTPS plus their exact current Host for origin checks and Secure session cookies. An explicit `APP_ORIGIN` remains available for a later canonical domain, configured only on its matching environment. Neither credentials nor worker settings use `NEXT_PUBLIC_` variables. A missing worker configuration returns a controlled unavailable response instead of pretending a local Python executable is present.
 
-Preserve the existing development `.env.local` when linking with the CLI; do not accept an environment-pull prompt that overwrites it. `.env*`, `.local`, tests and deployment templates are excluded from the app upload. `.vercel/` is ignored. Keep Vercel's preview access protection for this development preview and create real preview accounts through the app. Do not seed fictional metrics.
+Preserve the existing development `.env.local` when linking with the CLI; do not accept an environment-pull prompt that overwrites it. `.env*`, `.local`, tests and deployment templates are excluded from the app upload. `.vercel/` is ignored. Generated preview deployments retain Vercel authentication protection. The stable preview URL is publicly reachable and uses the app's registration/sign-in and tenant permissions; create real preview accounts through the app. The native CLI can promote a project's first deployment to Production, so choose the target explicitly and configure the corresponding environment before deploying. Do not seed fictional metrics.
 
 ## Required external smoke checks
 
 After deployment, verify the actual HTTPS URL and provider logs:
 
-1. Protected preview access and app shell; unauthenticated app API reads return 401.
+1. App shell at the stable URL (and Vercel authentication on protected generated previews); unauthenticated app API reads return 401.
 2. Register a dedicated preview test account, create an organization/farm, reload persistence, and verify HTTPS Secure/HttpOnly/SameSite session cookies and same-origin write enforcement.
 3. Compare two isolated test accounts/organizations to verify runtime tenant isolation with hosted PostgreSQL.
 4. Preview the supplied workbook catalog, upload a real .xlsx ingredient table, and confirm authorized original downloads and unverified import state.
@@ -65,6 +65,10 @@ Publish the resulting app preview URL only after these checks pass. Local tests 
 
 ## Current session status
 
-Vercel account authorization, a new Next.js project, a new Python worker project and a Neon Free resource have been created. The worker is deployed and its actual solver/inspection/XLSX endpoints passed authenticated HTTPS checks. Static source/requirements URLs are private (404); the earlier deployment with broad static output was removed. Vercel native CLI 65.4 inherited the ancestor app configuration in one deployment; specifying the staged worker's absolute `--local-config` produced the correct Python build.
+The app is deployed at **https://farmstead-preview.vercel.app** with the separate worker at `https://farmstead-python-worker.vercel.app`. Both are new projects in the user's Vercel account. Neon Free provisioning and all twelve migrations succeeded. Only the restricted pooled `farm_server` credential is installed on the app; the worker has no database credential.
 
-The provider database-secret read requires additional verification (`challenge_required`). Do not try alternate credential-extraction routes to evade that requirement. The user can obtain the direct unpooled URL through their authenticated provider console and enter it as **PREVIEW_DATABASE_ADMIN_URL** in this cloud environment's secure settings. After the value is applied, run provisioning and continue app deployment. Do not enter that administrator URL on either Vercel runtime project. The frontend has not been deployed or externally smoke-tested yet. A GitHub Login Connection in Vercel is required for automatic Git pushes; the current new project can receive direct CLI source deployments.
+The hosted app passed HTTPS checks for registration and Secure/HttpOnly/SameSite cookies, persistence, cross-origin write rejection, outsider isolation, a real HiGHS optimum and an infeasible scenario, immutable recipe snapshots, CSV/Excel report contents, real workbook inspection, 32-row mapped preview and an exact SHA-256 source-file download round trip. Chromium also verified the saved recipe in the library, responsive mobile rendering after reload and no uncaught client errors; all 22 hosted checks passed. Synthetic validation fixtures are labeled and private to their test accounts; local integration cleanup suites were not run against hosted data.
+
+The worker's authenticated solver/inspection/XLSX endpoints also passed direct HTTPS checks. Static source/requirements URLs return 404, and the superseded deployment with broad static output was removed. An explicit absolute worker `--local-config` avoids the CLI inheriting the ancestor app configuration.
+
+Automatic GitHub deployments still require a GitHub Login Connection in the user's Vercel account. The current site was deployed directly with the CLI. Update the worker separately when its scripts or dependencies change. Provider credential reads that return `challenge_required` must continue through the provider's supported verification or secure user input, never alternate extraction routes.

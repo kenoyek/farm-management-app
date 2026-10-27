@@ -22,6 +22,7 @@ function provision(target = url, output = credentialsFile) {
       PREVIEW_DATABASE_ADMIN_URL:
         "postgresql://fixture:synthetic@unusable.invalid/ignored",
       MIGRATION_DATABASE_URL: target,
+      MIGRATION_DATABASE_TRANSPORT: "tcp",
       PREVIEW_CREDENTIALS_FILE: output,
     },
     encoding: "utf8",

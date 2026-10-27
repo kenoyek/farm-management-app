@@ -1,6 +1,6 @@
 // One-time/idempotent preparation of a dedicated preview database. Never place
 // the migration/admin URL in the Vercel application environment.
-import pg from "pg";
+import { databaseClient } from "./database-client.mjs";
 import { randomBytes } from "node:crypto";
 import {
   existsSync,
@@ -16,6 +16,8 @@ const output = resolve(
 );
 let admin, runtime;
 try {
+  process.env.MIGRATION_DATABASE_TRANSPORT ??=
+    process.env.PREVIEW_DATABASE_TRANSPORT ?? "tcp";
   if (
     !process.env.MIGRATION_DATABASE_URL &&
     process.env.PREVIEW_DATABASE_ADMIN_URL
@@ -31,10 +33,7 @@ try {
   if (!["localhost", "127.0.0.1"].includes(url.hostname))
     url.searchParams.set("sslmode", "verify-full");
   process.env.MIGRATION_DATABASE_URL = url.toString();
-  admin = new pg.Client({
-    connectionString: url.toString(),
-    connectionTimeoutMillis: 15000,
-  });
+  admin = await databaseClient(url.toString());
   await admin.connect();
   const existing = (
     await admin.query(
@@ -94,10 +93,7 @@ try {
     !runtimeUrl.hostname.split(".")[0].endsWith("-pooler")
   )
     runtimeUrl.hostname = runtimeUrl.hostname.replace(".", "-pooler.");
-  runtime = new pg.Client({
-    connectionString: runtimeUrl.toString(),
-    connectionTimeoutMillis: 15000,
-  });
+  runtime = await databaseClient(runtimeUrl.toString());
   await runtime.connect();
   const role = (
     await runtime.query(

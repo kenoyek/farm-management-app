@@ -1,4 +1,4 @@
-import pg from "pg";
+import { databaseClient } from "./database-client.mjs";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 let migrationUrl =
   process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -11,7 +11,7 @@ if (
   )[1];
   migrationUrl = `postgresql://postgres:${secret}@127.0.0.1:54329/farmstead`;
 }
-const client = new pg.Client({ connectionString: migrationUrl });
+const client = await databaseClient(migrationUrl);
 await client.connect();
 try {
   await client.query("SELECT pg_advisory_lock(734218)");

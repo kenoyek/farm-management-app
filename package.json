@@ -26,6 +26,7 @@
     "zod": "^4.3.0"
   },
   "devDependencies": {
+    "@neondatabase/serverless": "1.2.0",
     "@playwright/test": "^1.58.0",
     "@types/node": "^24.10.0",
     "@types/pg": "^8.16.0",
