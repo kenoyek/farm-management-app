@@ -90,3 +90,6 @@ The source-recipe/provenance update passed 22 hosted API/browser checks after de
 
 
 For structured processing constraints, apply migration 016 and deploy the backward-compatible Python worker accepting up to 31 rows **before pushing the app**. This accommodates eleven nutrient rows plus at most twenty reviewed groups. Original seven/eleven-row clients remain valid; body/time/memory/variable limits are unchanged. Keep the worker's explicit absolute local configuration and project link when deploying from `.local/vercel-worker`; never deploy the app under that project. Normal Git pushes update only the app. No environment credential changes are needed.
+
+
+The processing update passed all 25 hosted API/browser checks after Git deployment `2093b2c`, plus direct worker 31/32-row boundary and private-source checks. Its downloaded Excel workbook was independently read to confirm exact method evidence, group cap and saved total. Historical CSV bytes remained identical after reference/method/price/profile revisions. The dedicated database now has sixteen applied migrations. Hosted fixtures remain clearly labeled synthetic in private organizations; no local cleanup suite was pointed at Neon.
