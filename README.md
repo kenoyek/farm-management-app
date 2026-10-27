@@ -98,3 +98,10 @@ Use **Load scenario as draft** to deliberately replace your working formulation 
 In Feed studio → Source catalog, select **Ingredient inclusion limits** or **Broiler recipe mappings** and open a source row. Assigned nutritionists use **Review mapping** to select an exact ingredient reference, reject a mapping, or leave it unresolved, with evidence and explicit confirmation. Other members can view history and download the latest 100 decisions as JSON. A stale tab must reload the latest review before saving.
 
 Decisions apply to that row/context only. They preserve original warnings and do not approve nutrition, apply source inclusion limits or change saved recipes. A new ingredient/quotation revision requires explicit new review. Expanded nutrients and qualified catalog reconciliation remain outstanding.
+
+
+## Expanded nutrient measurements
+
+Ingredients and Specifications now support **crude fat, crude fibre, moisture and ash**, alongside the original seven measurements. Leave unavailable values blank. Moisture is measured as-fed only and is never calculated from dry matter. The additional measurements are assessed only when the selected reviewed specification sets limits; unknown assessed values block approval and optimization.
+
+Custom workbook mapping supports explicit columns and the existing percent/g/kg/fraction units. No new data is inferred for the supplied workbooks. Saved recipe reports retain their recorded values; earlier seven-field reports keep their original rows and digest. Additional amino acids, fibre methods and catfish digestibility remain future work.

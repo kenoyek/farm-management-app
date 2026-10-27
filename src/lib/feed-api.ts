@@ -13,6 +13,7 @@ import { id } from "./validation";
 import { jsonBody, fail, rateLimit } from "./http";
 import {
   nutrientKeys,
+  coreNutrientKeys,
   calculateFormula,
   compliance,
   type Ingredient,
@@ -20,6 +21,7 @@ import {
 import { optimize } from "./optimizer";
 import reference from "../../data/ingredients.json";
 import workbooks from "../../data/workbook-audit.json";
+import { nutrientDefinitions, nutrientRegistryVersion } from "./nutrients";
 const nullable = z.number().finite().nonnegative().nullable();
 const nutrients = z
   .object({
@@ -30,7 +32,12 @@ const nutrients = z
     phosphorus: nullable,
     methionine: nullable,
     lysine: nullable,
+    crudeFat: nullable.optional().default(null),
+    crudeFibre: nullable.optional().default(null),
+    moisture: nullable.optional().default(null),
+    ash: nullable.optional().default(null),
   })
+  .strict()
   .refine(
     (v) =>
       nutrientKeys.every(
@@ -261,6 +268,11 @@ export async function feedApi(
         inclusionMax: z.number().min(0).max(100).default(100),
       })
       .parse(await jsonBody(request));
+    if (input.basis === "dry-matter" && input.nutrients.moisture !== null)
+      fail(
+        400,
+        "Moisture is measured as-fed; leave it unknown on a dry-matter reference.",
+      );
     return NextResponse.json(
       await tenant(user.id, async (c) => {
         const role = (
@@ -424,7 +436,9 @@ export async function feedApi(
                 ingredientSnapshot: ingredients.filter((i) =>
                   input.lines.some((l) => l.ingredientId === i.id),
                 ),
-                modelVersion: 3,
+                modelVersion: 4,
+                nutrientRegistryVersion,
+                nutrientDefinitions,
               }),
               JSON.stringify(result),
             ],
@@ -441,6 +455,12 @@ export async function feedApi(
           input.lines,
           ingredients,
           input.batchKg,
+          [
+            ...new Set([
+              ...coreNutrientKeys,
+              ...nutrientKeys.filter((k) => profile?.limits[k]),
+            ]),
+          ],
         );
         const checks = profile
           ? compliance(calculation.nutrients, profile.limits)
@@ -456,7 +476,9 @@ export async function feedApi(
           profileSnapshot: profile,
           compliance: checks,
           profileName: profile?.name ?? null,
-          modelVersion: 2,
+          modelVersion: 3,
+          nutrientRegistryVersion,
+          nutrientDefinitions,
           releaseEligible:
             calculation.releaseEligible &&
             ruleIssues.length === 0 &&

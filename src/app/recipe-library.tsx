@@ -292,7 +292,7 @@ function Comparison({ value }: { value: RecipeComparison }) {
         nutrientKeys.map((k) => [
           v.id,
           nutrientLabels[k],
-          v.nutrients[k],
+          v.nutrients[k] ?? null,
           v.profile?.limits[k]?.min ?? null,
           v.profile?.limits[k]?.max ?? null,
           v.compliance.find((c) => c.nutrient === k)?.status ??

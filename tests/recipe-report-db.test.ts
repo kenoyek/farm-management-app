@@ -321,7 +321,7 @@ it("withholds nutrient deltas for a different production stage", async () => {
   ).json();
   expect(result.contextComparable).toBe(false);
   expect(Object.values(result.versions[1].nutrientDeltas)).toEqual(
-    Array(7).fill(null),
+    Array(11).fill(null),
   );
   expect(result.versions[1].deltaPerKg).toBe("200.0000");
 });

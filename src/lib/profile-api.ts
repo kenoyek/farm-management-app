@@ -3,7 +3,7 @@ import { z } from "zod";
 import { tenant, audit } from "./db";
 import { id } from "./validation";
 import { jsonBody, fail } from "./http";
-import { nutrientKeys, type Ingredient } from "./feed";
+import { coreNutrientKeys, type Ingredient } from "./feed";
 
 const range = z
   .object({
@@ -26,8 +26,22 @@ const limits = z
     phosphorus: range.optional(),
     methionine: range.optional(),
     lysine: range.optional(),
+    crudeFat: range.optional(),
+    crudeFibre: range.optional(),
+    moisture: range.optional(),
+    ash: range.optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (v) =>
+      Object.entries(v).every(
+        ([key, r]) =>
+          key === "energy" ||
+          !r ||
+          ((r.min ?? 0) <= 100 && (r.max ?? 0) <= 100),
+      ),
+    "Percentage requirements cannot exceed 100%.",
+  );
 const rule = z
   .object({
     ingredientId: id,
@@ -66,8 +80,10 @@ export async function profileApi(
 ) {
   if (path !== "profiles" || request.method !== "POST") return null;
   const input = profileInput.parse(await jsonBody(request));
-  for (const k of nutrientKeys.filter((k) => k !== "dryMatter"))
+  for (const k of coreNutrientKeys.filter((k) => k !== "dryMatter"))
     if (!input.limits[k]) fail(400, `Provide an explicit ${k} requirement.`);
+  if (input.basis !== "as-fed" && input.limits.moisture)
+    fail(400, "Moisture requirements use an as-fed basis.");
   return NextResponse.json(
     await tenant(user.id, async (c) => {
       if (

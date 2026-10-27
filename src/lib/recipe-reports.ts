@@ -1,6 +1,8 @@
 import Decimal from "decimal.js";
 import { z } from "zod";
-import { nutrientKeys, type Nutrient } from "./feed";
+import { nutrientKeys, type Nutrient, type Nutrients } from "./feed";
+import { coreNutrientKeys, nutrientLabels } from "./nutrients";
+export { nutrientLabels } from "./nutrients";
 
 const amount = z
   .union([z.string().min(1).max(100), z.number().finite()])
@@ -160,8 +162,14 @@ export function recipeReport(raw: unknown) {
         ? null
         : new Decimal(recipe.result.batchCost).toFixed(2),
     nutrients: Object.fromEntries(
-      nutrientKeys.map((k) => [k, recipe.result.nutrients[k] ?? null]),
-    ) as Record<Nutrient, number | null>,
+      nutrientKeys
+        .filter(
+          (k) =>
+            (coreNutrientKeys as readonly string[]).includes(k) ||
+            Object.hasOwn(recipe.result.nutrients, k),
+        )
+        .map((k) => [k, recipe.result.nutrients[k] ?? null]),
+    ) as Nutrients,
     compliance: recipe.result.compliance,
     issues: recipe.result.issues,
     eligibleAtSave: recipe.result.releaseEligible,
@@ -249,8 +257,8 @@ export function compareRecipes(reports: RecipeReport[], batchKg: number) {
         nutrientKeys.map((k) => [
           k,
           contextComparable &&
-          r.nutrients[k] !== null &&
-          baseline.nutrients[k] !== null
+          r.nutrients[k] != null &&
+          baseline.nutrients[k] != null
             ? new Decimal(r.nutrients[k]!)
                 .minus(baseline.nutrients[k]!)
                 .toNumber()
@@ -270,15 +278,6 @@ export type ReportSheet = {
   name: string;
   rows: ReportCell[][];
   headerRows: number[];
-};
-export const nutrientLabels: Record<Nutrient, string> = {
-  energy: "Energy (kcal/kg)",
-  protein: "Crude protein (%)",
-  dryMatter: "Dry matter (%)",
-  calcium: "Calcium (%)",
-  phosphorus: "Phosphorus (%)",
-  methionine: "Methionine (%)",
-  lysine: "Lysine (%)",
 };
 
 export function recipeSheets(
@@ -350,16 +349,18 @@ export function recipeSheets(
           "Own maximum",
           "Saved check",
         ],
-        ...nutrientKeys.map((k) => {
-          const c = report.compliance.find((c) => c.nutrient === k);
-          return [
-            nutrientLabels[k],
-            report.nutrients[k],
-            p?.limits[k]?.min ?? null,
-            p?.limits[k]?.max ?? null,
-            c?.status ?? "No saved check",
-          ];
-        }),
+        ...nutrientKeys
+          .filter((k) => Object.hasOwn(report.nutrients, k))
+          .map((k) => {
+            const c = report.compliance.find((c) => c.nutrient === k);
+            return [
+              nutrientLabels[k],
+              report.nutrients[k] ?? null,
+              p?.limits[k]?.min ?? null,
+              p?.limits[k]?.max ?? null,
+              c?.status ?? "No saved check",
+            ];
+          }),
       ],
     },
     {

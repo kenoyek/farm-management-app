@@ -9,6 +9,7 @@ import { profileRuleIssues, type IngredientRule } from "./profile-rules";
 import { spawn } from "node:child_process";
 import {
   nutrientKeys,
+  coreNutrientKeys,
   type Ingredient,
   type FormulaLine,
   type Limits,
@@ -35,6 +36,8 @@ export async function optimize(
     new Set(lines.map((l) => l.ingredientId)).size !== lines.length
   )
     throw Error("Choose unique ingredients.");
+  if (limits.moisture && selected.some((i) => i.basis !== "as-fed"))
+    throw Error("Moisture requirements use an as-fed basis.");
   for (const i of selected) {
     if (
       i.review_status !== "approved" ||
@@ -62,6 +65,12 @@ export async function optimize(
     throw Error("Incompatible nutrient bases.");
   if (!Object.keys(limits).length)
     throw Error("A nutritional specification is required.");
+  if (
+    Object.keys(limits).some(
+      (k) => !(nutrientKeys as readonly string[]).includes(k),
+    )
+  )
+    throw Error("Unsupported nutrient requirement.");
   const evidence = diagnoseConstraints(
     ingredients,
     lines,
@@ -137,7 +146,9 @@ export async function optimize(
     ...l,
     percent: solution.fractions![index] * 100,
   }));
-  const calculation = calculateFormula(optimized, selected, batchKg);
+  const calculation = calculateFormula(optimized, selected, batchKg, [
+    ...new Set([...coreNutrientKeys, ...nutrientKeys.filter((k) => limits[k])]),
+  ]);
   const ruleIssues = profileRuleIssues(optimized, ingredients, rules);
   calculation.issues.push(...ruleIssues);
   calculation.releaseEligible = calculation.issues.length === 0;

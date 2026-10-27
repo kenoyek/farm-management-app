@@ -1,4 +1,5 @@
 "use client";
+import { nutrientLabels } from "@/lib/nutrients";
 import { useFeedDraft } from "@/lib/use-feed-draft";
 import type { DraftContent } from "@/lib/draft-schema";
 import OptimizationHistory from "./optimization-history";
@@ -65,15 +66,7 @@ type Preview = {
   ingredients: Ingredient[];
   issues: string[];
 };
-const labels = {
-  energy: "Energy (kcal/kg)",
-  protein: "Crude protein (%)",
-  dryMatter: "Dry matter (%)",
-  calcium: "Calcium (%)",
-  phosphorus: "Phosphorus (%)",
-  methionine: "Methionine (%)",
-  lysine: "Lysine (%)",
-};
+const labels = nutrientLabels;
 export default function FeedStudio({
   organizationId,
   role,
@@ -745,7 +738,7 @@ export default function FeedStudio({
                           ["Nutrient", "Actual"],
                           ...nutrientKeys.map((k) => [
                             labels[k],
-                            result.nutrients[k],
+                            result.nutrients[k] ?? null,
                           ]),
                           [],
                           ["Cost/kg", result.costPerKg],
@@ -1109,7 +1102,11 @@ export default function FeedStudio({
                 </label>
                 <label>
                   Nutrient basis
-                  <select name="basis" defaultValue={editing?.basis ?? ""}>
+                  <select
+                    aria-label="Nutrient basis"
+                    name="basis"
+                    defaultValue={editing?.basis ?? ""}
+                  >
                     <option value="">Unknown</option>
                     <option value="as-fed">As-fed</option>
                     <option value="dry-matter">Dry matter</option>
@@ -1118,6 +1115,7 @@ export default function FeedStudio({
                 <label>
                   Energy system
                   <select
+                    aria-label="Energy system"
                     name="energySystem"
                     defaultValue={editing?.energy_system ?? ""}
                   >
@@ -1129,6 +1127,7 @@ export default function FeedStudio({
                 <label>
                   Species
                   <select
+                    aria-label="Species"
                     name="species"
                     defaultValue={editing?.species ?? "unknown"}
                   >
@@ -1148,6 +1147,7 @@ export default function FeedStudio({
                 <label>
                   Phosphorus basis
                   <select
+                    aria-label="Phosphorus basis"
                     name="phosphorusBasis"
                     defaultValue={editing?.phosphorus_basis ?? "unknown"}
                   >
@@ -1217,7 +1217,7 @@ export default function FeedStudio({
               </label>
               <label className="field">
                 Review status
-                <select name="reviewStatus">
+                <select aria-label="Review status" name="reviewStatus">
                   <option value="unverified">Unverified</option>
                   {nutritionist && (
                     <option value="approved">

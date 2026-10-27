@@ -1,4 +1,5 @@
 "use client";
+import { nutrientLabels } from "@/lib/nutrients";
 import { useState, type FormEvent } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { api, downloadJson } from "@/lib/client";
@@ -6,15 +7,7 @@ import { useDialog } from "@/lib/use-dialog";
 import { nutrientKeys, type Ingredient } from "@/lib/feed";
 import type { RequirementProfile } from "@/lib/profile-rules";
 
-const labels = {
-  energy: "Energy (kcal/kg)",
-  protein: "Crude protein (%)",
-  dryMatter: "Dry matter (%)",
-  calcium: "Calcium (%)",
-  phosphorus: "Phosphorus (%)",
-  methionine: "Methionine (%)",
-  lysine: "Lysine (%)",
-};
+const labels = nutrientLabels;
 const ingredientLabel = (i: Ingredient) =>
   `${i.name} · v${i.revision ?? 1} · ${i.id.slice(0, 8)}`;
 
@@ -383,6 +376,11 @@ function ProfileEditor({
                 </select>
               </label>
             </div>
+            <p className="helper">
+              Crude fat, crude fibre, moisture and ash are optional assessed
+              requirements. Blank bounds add no constraint. Moisture uses as-fed
+              percentages only; no dry-matter/moisture complement is inferred.
+            </p>
             <div className="table-scroll">
               <table>
                 <thead>
@@ -403,6 +401,7 @@ function ProfileEditor({
                             name={`${k}.${b}`}
                             type="number"
                             min="0"
+                            max={k === "energy" ? undefined : 100}
                             step="any"
                             defaultValue={previous?.limits[k]?.[b] ?? ""}
                           />

@@ -1,15 +1,12 @@
 import Decimal from "decimal.js";
-export const nutrientKeys = [
-  "energy",
-  "protein",
-  "dryMatter",
-  "calcium",
-  "phosphorus",
-  "methionine",
-  "lysine",
-] as const;
-export type Nutrient = (typeof nutrientKeys)[number];
-export type Nutrients = Record<Nutrient, number | null>;
+import {
+  coreNutrientKeys,
+  nutrientKeys,
+  type Nutrient,
+  type Nutrients,
+} from "./nutrients";
+export { coreNutrientKeys, nutrientKeys } from "./nutrients";
+export type { Nutrient, Nutrients } from "./nutrients";
 export type Ingredient = {
   id: string;
   parent_id?: string | null;
@@ -39,6 +36,7 @@ export function calculateFormula(
   lines: FormulaLine[],
   ingredients: Ingredient[],
   batchKg: number,
+  requiredNutrients: readonly Nutrient[] = coreNutrientKeys,
 ) {
   if (!Number.isFinite(batchKg) || batchKg <= 0)
     throw Error("Batch weight must be greater than zero.");
@@ -109,9 +107,25 @@ export function calculateFormula(
         const value = ingredient.nutrients[k];
         if (value === null || value === undefined) {
           values[k] = null;
-          issues.push(`${ingredient.name}: ${k} is missing.`);
-        } else if (values[k] !== null)
-          values[k] = values[k]!.plus(fraction.mul(value));
+          if (requiredNutrients.includes(k))
+            issues.push(`${ingredient.name}: ${k} is missing.`);
+        } else {
+          if (
+            typeof value !== "number" ||
+            !Number.isFinite(value) ||
+            value < 0 ||
+            (k !== "energy" && value > 100)
+          )
+            throw Error(`${ingredient.name}: invalid ${k} concentration.`);
+          if (k === "moisture" && ingredient.basis !== "as-fed") {
+            values[k] = null;
+            if (requiredNutrients.includes(k))
+              issues.push(
+                `${ingredient.name}: moisture requires an as-fed reference.`,
+              );
+          } else if (values[k] !== null)
+            values[k] = values[k]!.plus(fraction.mul(value));
+        }
       }
     }
     return {
@@ -155,7 +169,7 @@ export function compliance(nutrients: Nutrients, limits: Limits) {
   return nutrientKeys
     .filter((k) => limits[k])
     .map((k) => {
-      const actual = nutrients[k],
+      const actual = nutrients[k] ?? null,
         range = limits[k]!;
       return {
         nutrient: k,

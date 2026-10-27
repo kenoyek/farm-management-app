@@ -28,7 +28,7 @@ def solve(payload):
     for bound in bounds:
         if not isinstance(bound, list) or len(bound) != 2 or any(not number(v) for v in bound) or not 0 <= bound[0] <= bound[1] <= 1:
             raise ValueError('Invalid bounds')
-    if not isinstance(constraints, list) or len(constraints) > 7:
+    if not isinstance(constraints, list) or len(constraints) > 11:
         raise ValueError('Invalid nutrient constraints')
     rows, rhs = [], []
     for c in constraints:

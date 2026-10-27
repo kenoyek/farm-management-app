@@ -1,4 +1,5 @@
 "use client";
+import { nutrientLabels } from "@/lib/nutrients";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, downloadCsv, ApiError } from "@/lib/client";
 import {
@@ -28,16 +29,15 @@ type Detail = Summary & {
   suggestedMapping: UploadMapping;
   suggestedMappings: Record<string, UploadMapping>;
 };
-const labels = {
+const labels: Record<(typeof importFields)[number], string> = {
   name: "Ingredient name",
   price: "Purchase price",
-  energy: "Energy",
-  protein: "Crude protein",
-  dryMatter: "Dry matter",
-  calcium: "Calcium",
-  phosphorus: "Phosphorus",
-  methionine: "Methionine",
-  lysine: "Lysine",
+  ...(Object.fromEntries(
+    Object.entries(nutrientLabels).map(([key, label]) => [
+      key,
+      label.replace(/\s+\([^)]*\)$/, ""),
+    ]),
+  ) as Record<keyof typeof nutrientLabels, string>),
 };
 export default function WorkbookUpload({
   organizationId,
@@ -305,7 +305,7 @@ export default function WorkbookUpload({
                   <label key={key}>
                     {labels[key]} column
                     <select
-                      value={mapping.columns[key]}
+                      value={mapping.columns[key] ?? ""}
                       onChange={(e) =>
                         change({
                           ...mapping,

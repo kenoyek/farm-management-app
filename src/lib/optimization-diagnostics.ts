@@ -181,14 +181,20 @@ export function diagnoseConstraints(
       );
       if (
         values.some(
-          (v) => typeof v !== "number" || !Number.isFinite(v) || v < 0,
+          (v) =>
+            typeof v !== "number" ||
+            !Number.isFinite(v) ||
+            v < 0 ||
+            (n !== "energy" && v > 100),
         )
       )
         throw Error(`Required ${n} data is missing or invalid.`);
       const range = limits[n]!;
       if (
         [range.min, range.max].some(
-          (v) => v !== undefined && (!Number.isFinite(v) || v < 0),
+          (v) =>
+            v !== undefined &&
+            (!Number.isFinite(v) || v < 0 || (n !== "energy" && v > 100)),
         ) ||
         (range.min ?? 0) > (range.max ?? Infinity)
       )

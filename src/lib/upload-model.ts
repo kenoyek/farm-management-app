@@ -49,6 +49,10 @@ export const uploadMapping = z
         phosphorus: column,
         methionine: column,
         lysine: column,
+        crudeFat: column.optional(),
+        crudeFibre: column.optional(),
+        moisture: column.optional(),
+        ash: column.optional(),
       })
       .strict(),
     concentrationUnit: z.enum(["percent", "g/kg", "fraction"]),
@@ -135,6 +139,11 @@ export function suggestMapping(book: Inspection): UploadMapping {
       phosphorus: "phosphorus",
       methionine: "methionine",
       lysine: "lysine",
+      crudefat: "crudeFat",
+      crudefibre: "crudeFibre",
+      crudefiber: "crudeFibre",
+      moisture: "moisture",
+      ash: "ash",
     };
     for (let r = 1; r <= Math.min(20, sheet.rows); r++) {
       const found: Partial<Record<ImportField, string>> = {};
