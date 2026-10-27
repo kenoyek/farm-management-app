@@ -84,3 +84,6 @@ The nutrient update passed 21 hosted API/browser checks after deployment, includ
 
 
 Apply migration 015 before pushing the provenance/source-recipe app update. The existing Python worker already supports five report worksheets; this update changes its bounded input data, not the worker scripts/protocol, so a separate worker redeployment is unnecessary. Source imports use the same restricted runtime, tenant RLS, origin enforcement and authenticated export transport as other recipe operations.
+
+
+The source-recipe/provenance update passed 22 hosted API/browser checks after deployment. Independent reading of its actual downloaded Excel report confirmed the fifth audit sheet, all 34 source rows, exactly 30 blank inclusions and the original four percentages. Supplier strings remained literal text; report bytes stayed unchanged after a new reference/provenance revision. These checks used labeled private synthetic fixtures, not existing user records.
