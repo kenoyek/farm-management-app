@@ -2,7 +2,13 @@ import pg, { type PoolClient } from "pg";
 const globalDb = globalThis as unknown as { farmPool?: pg.Pool };
 export const pool =
   globalDb.farmPool ??
-  new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 8 });
+  new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: process.env.VERCEL ? 3 : 8,
+    connectionTimeoutMillis: 15000,
+    idleTimeoutMillis: 10000,
+    allowExitOnIdle: true,
+  });
 if (process.env.NODE_ENV !== "production") globalDb.farmPool = pool;
 export async function tenant<T>(
   userId: string,

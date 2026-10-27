@@ -1,3 +1,4 @@
+import { remoteWorker } from "./remote-worker";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
@@ -25,6 +26,9 @@ export async function inspectUpload(bytes: Buffer): Promise<Inspection> {
     fail(429, "Workbook inspection is busy. Try again shortly.");
   inspecting++;
   try {
+    const remote = await remoteWorker("inspect", bytes);
+    if (remote !== null)
+      return inspectionSchema.parse(JSON.parse(remote.toString("utf8")));
     return await new Promise((resolve, reject) => {
       const worker = spawn(
         /* turbopackIgnore: true */ process.env.FARM_PYTHON ?? "python",

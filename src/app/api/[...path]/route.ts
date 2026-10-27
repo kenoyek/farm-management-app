@@ -19,8 +19,10 @@ import {
   fail,
   jsonBody,
   rateLimit,
+  applicationOrigin,
 } from "@/lib/http";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 async function handler(request: NextRequest) {
   try {
@@ -61,8 +63,7 @@ async function handler(request: NextRequest) {
       response.cookies.set(cookieName, token, {
         httpOnly: true,
         sameSite: "lax",
-        secure:
-          new URL(process.env.APP_ORIGIN ?? request.url).protocol === "https:",
+        secure: new URL(applicationOrigin(request)).protocol === "https:",
         path: "/",
         maxAge: 604800,
       });

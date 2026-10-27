@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "regions": ["iad1"],
+  "installCommand": "",
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "functions": {
+    "api/worker.py": { "maxDuration": 60, "includeFiles": "workers/**" }
+  }
+}

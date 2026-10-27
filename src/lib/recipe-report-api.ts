@@ -1,3 +1,4 @@
+import { remoteWorker } from "./remote-worker";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -22,6 +23,12 @@ export async function workbookBytes(sheets: ReportSheet[]): Promise<Buffer> {
   if (exporting >= 2) fail(429, "Workbook export is busy. Try again shortly.");
   exporting++;
   try {
+    const remote = await remoteWorker("export", Buffer.from(payload));
+    if (remote !== null) {
+      if (remote.length < 4 || remote.readUInt32LE(0) !== 0x04034b50)
+        fail(503, "Workbook could not be generated.");
+      return remote;
+    }
     return await new Promise((resolve, reject) => {
       const child = spawn(
         /* turbopackIgnore: true */ process.env.FARM_PYTHON ?? "python",

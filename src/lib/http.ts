@@ -11,7 +11,10 @@ export class HttpError extends Error {
 export function fail(status: number, message: string): never {
   throw new HttpError(status, message);
 }
-export async function boundedBody(request: Request, limit: number) {
+export async function boundedBody(
+  request: Pick<Request, "body">,
+  limit: number,
+) {
   const reader = request.body?.getReader();
   if (!reader) return Buffer.alloc(0);
   const chunks: Uint8Array[] = [];
@@ -42,12 +45,16 @@ export async function jsonBody(request: Request) {
     fail(400, "Invalid JSON data.");
   }
 }
+export function applicationOrigin(request: Request) {
+  const url = new URL(request.url);
+  return (
+    process.env.APP_ORIGIN ??
+    `${process.env.VERCEL ? "https:" : url.protocol}//${request.headers.get("host") ?? url.host}`
+  );
+}
 export function checkOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  const url = new URL(request.url);
-  const expected =
-    process.env.APP_ORIGIN ??
-    `${url.protocol}//${request.headers.get("host") ?? url.host}`;
+  const expected = applicationOrigin(request);
   if (!origin || origin !== expected)
     fail(403, "This request must come from the application.");
 }

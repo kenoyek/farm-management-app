@@ -1,3 +1,4 @@
+import { remoteWorker } from "./remote-worker";
 import Decimal from "decimal.js";
 import { z } from "zod";
 import {
@@ -218,6 +219,8 @@ async function solvePayload(payload: unknown): Promise<string> {
     throw Error("Optimization request is too large.");
   solving++;
   try {
+    const remote = await remoteWorker("optimize", Buffer.from(input));
+    if (remote !== null) return remote.toString("utf8");
     return await new Promise<string>((resolve, reject) => {
       const child = spawn(
         /* turbopackIgnore: true */ process.env.FARM_PYTHON ?? "python",
