@@ -21,7 +21,7 @@ Enable RLS and least-privilege grants on every tenant table, including new migra
 
 ## Implemented schema and permissions
 
-Nine forward-only migrations currently create identities/sessions, organizations/memberships/farms/audit, imports/ingredients/reviewed requirements/formula versions/optimization runs, forecasts, production units and append-only daily records. They also add scientific context and inclusion limits, guarded team functions, organization settings and the restricted `farm_server` login. `farm_server` has NOINHERIT/NOSUPERUSER/NOBYPASSRLS and identity/session grants only; operational access requires `SET LOCAL ROLE farm_app`. Local migration/test-administration credentials are read only by setup/test helpers. Rollbacks for destructive historical tables are intentionally not automated; take and verify backups before schema changes.
+Ten forward-only migrations currently create identities/sessions, organizations/memberships/farms/audit, imports/ingredients/reviewed requirements/formula versions/optimization runs, forecasts, production units and append-only daily records. They also add scientific context and inclusion limits, guarded team functions, organization settings and the restricted `farm_server` login. `farm_server` has NOINHERIT/NOSUPERUSER/NOBYPASSRLS and identity/session grants only; operational access requires `SET LOCAL ROLE farm_app`. Local migration/test-administration credentials are read only by setup/test helpers. Rollbacks for destructive historical tables are intentionally not automated; take and verify backups before schema changes.
 
 ```mermaid
 erDiagram
@@ -44,3 +44,6 @@ Formula/forecast/import snapshots intentionally retain original input JSON along
 
 
 Migration 009 adds `import_reference_rows` with tenant/import composite ownership, immutable source fields/issues, hash/sheet/row/context uniqueness, and reader/editor RLS. `ingredients.parent_id` uses a composite tenant foreign key; revision sequencing is checked on insert and each parent can have only one successor. Runtime UPDATE access to ingredients is revoked, including for nutritionists. Review and price changes append new records, preserving recipe snapshots and their original IDs. These source candidates are separate from approved requirement profiles and are never applied automatically.
+
+
+Migration 010 adds `formulation_drafts`, unique by `(organization_id, actor_id)`. RLS scopes reads/writes to the current actor with a current feed-editor membership; other administrators do not inherit access to private content. Column-level update grants prevent changing ownership, and a trigger checks revision increments. The API uses compare-and-swap updates and verifies every nonempty ingredient/profile/recipe reference against the organization. Save requests bind the browser's loaded actor identity to the authenticated session. Draft content has an explicit model version, omits approval status/results, and can represent incomplete editing states. It is never a released recipe or a financial/stock event. Saves record audit metadata without the private draft payload.

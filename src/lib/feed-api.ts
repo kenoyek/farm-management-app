@@ -1,3 +1,4 @@
+import { draftApi } from "./draft-api";
 import { workbookCatalog } from "./workbook-catalog";
 import { catalogApi, stageCatalog } from "./catalog-api";
 import { NextRequest, NextResponse } from "next/server";
@@ -76,6 +77,8 @@ export async function feedApi(
   user: { id: string },
   path: string,
 ) {
+  const draftResponse = await draftApi(request, user, path);
+  if (draftResponse) return draftResponse;
   const catalogResponse = await catalogApi(request, user, path);
   if (catalogResponse) return catalogResponse;
   const method = request.method;

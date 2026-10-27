@@ -1,7 +1,9 @@
 "use client";
+import { useFeedDraft } from "@/lib/use-feed-draft";
+import type { DraftContent } from "@/lib/draft-schema";
 import SourceCatalog from "./source-catalog";
 import { useDialog } from "@/lib/use-dialog";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useCallback, type FormEvent } from "react";
 import {
   FlaskConical,
   Plus,
@@ -10,7 +12,7 @@ import {
   ArrowDownToLine,
   CheckCircle2,
 } from "lucide-react";
-import { api, downloadCsv } from "@/lib/client";
+import { api, downloadCsv, downloadJson } from "@/lib/client";
 import {
   nutrientKeys,
   type Ingredient,
@@ -103,6 +105,29 @@ export default function FeedStudio({
   });
   const canEdit = ["owner", "admin", "nutritionist"].includes(role);
   const nutritionist = role === "nutritionist";
+  const restoreDraft = useCallback((draft: DraftContent) => {
+    setName(draft.name);
+    setBatchKg(draft.batchKg);
+    setProfileId(draft.profileId ?? "");
+    setParentId(draft.parentId);
+    setLines(draft.lines);
+    setStatus("draft");
+    setResult(null);
+  }, []);
+  const draft = useFeedDraft(
+    organizationId,
+    canEdit,
+    {
+      modelVersion: 1,
+      name,
+      batchKg,
+      profileId: profileId || null,
+      parentId,
+      lines,
+    },
+    restoreDraft,
+  );
+
   const currentIngredients = data.ingredients.filter(
     (i) => !data.ingredients.some((next) => next.parent_id === i.id),
   );
@@ -225,415 +250,502 @@ export default function FeedStudio({
       )}
       {tab === "Formulator" && (
         <>
-          <div className="panel module-panel">
-            <div className="panel-heading">
-              <h2>
-                <FlaskConical size={17} /> Feed formulation studio
-              </h2>
-              <span className="tag">
-                {result?.releaseEligible
-                  ? "Eligible for nutritionist review"
-                  : "DRAFT · NOT RELEASED"}
-              </span>
-            </div>
-            <div className="editor-settings">
-              <label>
-                Recipe name
-                <input
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setResult(null);
-                  }}
-                  maxLength={100}
-                />
-              </label>
-              <label>
-                Batch weight (kg)
-                <input
-                  type="number"
-                  min="1"
-                  value={batchKg}
-                  onChange={(e) => {
-                    setBatchKg(Number(e.target.value));
-                    setResult(null);
-                  }}
-                />
-              </label>
-              <label>
-                Nutritional specification
-                <select
-                  value={profileId}
-                  onChange={(e) => {
-                    setProfileId(e.target.value);
-                    setResult(null);
-                  }}
-                >
-                  <option value="">No reviewed profile selected</option>
-                  {data.profiles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Ingredient</th>
-                    <th>Inclusion %</th>
-                    <th>Min %</th>
-                    <th>Max %</th>
-                    <th>Available kg</th>
-                    <th>Batch kg</th>
-                    <th>Reference</th>
-                    <th>
-                      <span className="sr-only">Remove</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((l, i) => {
-                    const ing = data.ingredients.find(
-                      (d) => d.id === l.ingredientId,
-                    );
-                    return (
-                      <tr key={i}>
-                        <td>
-                          <select
-                            aria-label={`Ingredient ${i + 1}`}
-                            value={l.ingredientId}
-                            onChange={(e) =>
-                              changed(
-                                lines.map((v, j) =>
-                                  j === i
-                                    ? { ...v, ingredientId: e.target.value }
-                                    : v,
-                                ),
-                              )
-                            }
-                          >
-                            <option value="">Select ingredient</option>
-                            {data.ingredients
-                              .filter(
-                                (d) =>
-                                  currentIngredients.some(
-                                    (i) => i.id === d.id,
-                                  ) || d.id === l.ingredientId,
-                              )
-                              .map((d) => (
-                                <option key={d.id} value={d.id}>
-                                  {d.name}
-                                  {(d.revision ?? 1) > 1
-                                    ? ` · v${d.revision}`
-                                    : ""}
-                                  {data.ingredients.some(
-                                    (next) => next.parent_id === d.id,
-                                  )
-                                    ? " · historical"
-                                    : ""}
-                                </option>
-                              ))}
-                          </select>
-                        </td>
-                        {(["percent", "min", "max"] as const).map((k) => (
-                          <td key={k}>
-                            <input
-                              aria-label={`${k} ingredient ${i + 1}`}
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={l[k] ?? (k === "max" ? 100 : 0)}
+          {canEdit && (
+            <section
+              className="draft-status panel"
+              aria-label="Formulation draft status"
+            >
+              <div role="status" aria-live="polite">
+                <strong>
+                  {!draft.state.ready
+                    ? draft.state.error
+                      ? "Draft unavailable"
+                      : "Loading draft…"
+                    : draft.state.conflict
+                      ? "Draft conflict"
+                      : draft.state.saving
+                        ? "Saving draft…"
+                        : draft.state.dirty
+                          ? "Draft has unsaved changes"
+                          : draft.state.savedAt
+                            ? "Draft saved"
+                            : "Draft ready"}
+                </strong>
+                <small>
+                  Private to your account in this organization. Autosave does
+                  not approve a recipe.
+                </small>
+              </div>
+              <div className="button-row">
+                {draft.state.error &&
+                  !draft.state.conflict &&
+                  draft.state.ready && (
+                    <button
+                      className="secondary"
+                      onClick={() => void draft.flush()}
+                    >
+                      Retry draft save
+                    </button>
+                  )}
+                {(draft.state.conflict || draft.state.error) && (
+                  <>
+                    <button
+                      className="secondary"
+                      disabled={!draft.state.ready && !draft.state.dirty}
+                      onClick={() =>
+                        downloadJson(
+                          "farmstead-local-formulation.json",
+                          draft.current(),
+                        )
+                      }
+                    >
+                      Download local draft
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={draft.state.saving}
+                      onClick={() => {
+                        if (
+                          !draft.state.dirty ||
+                          window.confirm(
+                            "Replace this tab’s edits with the saved draft? Download a local copy first if you want to keep both.",
+                          )
+                        )
+                          void draft.load();
+                      }}
+                    >
+                      Load saved draft
+                    </button>
+                  </>
+                )}
+              </div>
+              {draft.state.error && (
+                <p className="error" role="alert">
+                  {draft.state.error}
+                </p>
+              )}
+              {draft.state.warning && (
+                <p className="helper">{draft.state.warning}</p>
+              )}
+            </section>
+          )}
+          <fieldset
+            className="draft-editor"
+            disabled={canEdit && !draft.state.ready}
+          >
+            <div className="panel module-panel">
+              <div className="panel-heading">
+                <h2>
+                  <FlaskConical size={17} /> Feed formulation studio
+                </h2>
+                <span className="tag">
+                  {result?.releaseEligible
+                    ? "Eligible for nutritionist review"
+                    : "DRAFT · NOT RELEASED"}
+                </span>
+              </div>
+              <div className="editor-settings">
+                <label>
+                  Recipe name
+                  <input
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setResult(null);
+                    }}
+                    maxLength={100}
+                  />
+                </label>
+                <label>
+                  Batch weight (kg)
+                  <input
+                    type="number"
+                    min="1"
+                    value={batchKg}
+                    onChange={(e) => {
+                      setBatchKg(Number(e.target.value));
+                      setResult(null);
+                    }}
+                  />
+                </label>
+                <label>
+                  Nutritional specification
+                  <select
+                    value={profileId}
+                    onChange={(e) => {
+                      setProfileId(e.target.value);
+                      setResult(null);
+                    }}
+                  >
+                    <option value="">No reviewed profile selected</option>
+                    {data.profiles.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Ingredient</th>
+                      <th>Inclusion %</th>
+                      <th>Min %</th>
+                      <th>Max %</th>
+                      <th>Available kg</th>
+                      <th>Batch kg</th>
+                      <th>Reference</th>
+                      <th>
+                        <span className="sr-only">Remove</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((l, i) => {
+                      const ing = data.ingredients.find(
+                        (d) => d.id === l.ingredientId,
+                      );
+                      return (
+                        <tr key={i}>
+                          <td>
+                            <select
+                              aria-label={`Ingredient ${i + 1}`}
+                              value={l.ingredientId}
                               onChange={(e) =>
                                 changed(
                                   lines.map((v, j) =>
                                     j === i
-                                      ? { ...v, [k]: Number(e.target.value) }
+                                      ? { ...v, ingredientId: e.target.value }
+                                      : v,
+                                  ),
+                                )
+                              }
+                            >
+                              <option value="">Select ingredient</option>
+                              {data.ingredients
+                                .filter(
+                                  (d) =>
+                                    currentIngredients.some(
+                                      (i) => i.id === d.id,
+                                    ) || d.id === l.ingredientId,
+                                )
+                                .map((d) => (
+                                  <option key={d.id} value={d.id}>
+                                    {d.name}
+                                    {(d.revision ?? 1) > 1
+                                      ? ` · v${d.revision}`
+                                      : ""}
+                                    {data.ingredients.some(
+                                      (next) => next.parent_id === d.id,
+                                    )
+                                      ? " · historical"
+                                      : ""}
+                                  </option>
+                                ))}
+                            </select>
+                          </td>
+                          {(["percent", "min", "max"] as const).map((k) => (
+                            <td key={k}>
+                              <input
+                                aria-label={`${k} ingredient ${i + 1}`}
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={l[k] ?? (k === "max" ? 100 : 0)}
+                                onChange={(e) =>
+                                  changed(
+                                    lines.map((v, j) =>
+                                      j === i
+                                        ? { ...v, [k]: Number(e.target.value) }
+                                        : v,
+                                    ),
+                                  )
+                                }
+                              />
+                            </td>
+                          ))}
+                          <td>
+                            <input
+                              aria-label={`Available kg ingredient ${i + 1}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Not constrained"
+                              value={l.availableKg ?? ""}
+                              onChange={(e) =>
+                                changed(
+                                  lines.map((v, j) =>
+                                    j === i
+                                      ? {
+                                          ...v,
+                                          availableKg:
+                                            e.target.value === ""
+                                              ? undefined
+                                              : Number(e.target.value),
+                                        }
                                       : v,
                                   ),
                                 )
                               }
                             />
                           </td>
-                        ))}
-                        <td>
-                          <input
-                            aria-label={`Available kg ingredient ${i + 1}`}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Not constrained"
-                            value={l.availableKg ?? ""}
-                            onChange={(e) =>
-                              changed(
-                                lines.map((v, j) =>
-                                  j === i
-                                    ? {
-                                        ...v,
-                                        availableKg:
-                                          e.target.value === ""
-                                            ? undefined
-                                            : Number(e.target.value),
-                                      }
-                                    : v,
-                                ),
-                              )
-                            }
-                          />
-                        </td>
-                        <td>{((l.percent * batchKg) / 100).toFixed(2)}</td>
-                        <td>
-                          <span
-                            className={`status ${ing?.review_status === "approved" ? "good" : ""}`}
-                          >
-                            {ing?.review_status ?? "Select"}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            className="icon-button"
-                            aria-label={`Remove ingredient ${i + 1}`}
-                            onClick={() =>
-                              changed(lines.filter((_, j) => i !== j))
-                            }
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td>Total inclusion</td>
-                    <td>
-                      {lines.reduce((s, l) => s + l.percent, 0).toFixed(2)}%
-                    </td>
-                    <td colSpan={6}>Must equal 100% for a complete formula</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-            <div className="editor-actions">
-              <button
-                className="secondary"
-                disabled={!data.ingredients.length}
-                onClick={() =>
-                  changed([
-                    ...lines,
-                    {
-                      ingredientId:
-                        currentIngredients.find(
-                          (i) => !lines.some((l) => l.ingredientId === i.id),
-                        )?.id ?? "",
-                      percent: 0,
-                      min: 0,
-                      max: 100,
-                    },
-                  ])
-                }
-              >
-                <Plus size={15} />
-                Add ingredient
-              </button>
-              <div>
+                          <td>{((l.percent * batchKg) / 100).toFixed(2)}</td>
+                          <td>
+                            <span
+                              className={`status ${ing?.review_status === "approved" ? "good" : ""}`}
+                            >
+                              {ing?.review_status ?? "Select"}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              className="icon-button"
+                              aria-label={`Remove ingredient ${i + 1}`}
+                              onClick={() =>
+                                changed(lines.filter((_, j) => i !== j))
+                              }
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td>Total inclusion</td>
+                      <td>
+                        {lines.reduce((s, l) => s + l.percent, 0).toFixed(2)}%
+                      </td>
+                      <td colSpan={6}>
+                        Must equal 100% for a complete formula
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div className="editor-actions">
                 <button
                   className="secondary"
-                  disabled={busy || !lines.length}
+                  disabled={!data.ingredients.length || lines.length >= 100}
                   onClick={() =>
-                    void run(async () =>
-                      setResult(
-                        await api<Result>("formulas/calculate", payload),
-                      ),
-                    )
+                    changed([
+                      ...lines,
+                      {
+                        ingredientId:
+                          currentIngredients.find(
+                            (i) => !lines.some((l) => l.ingredientId === i.id),
+                          )?.id ?? "",
+                        percent: 0,
+                        min: 0,
+                        max: 100,
+                      },
+                    ])
                   }
                 >
-                  Calculate
+                  <Plus size={15} />
+                  Add ingredient
                 </button>
+                <div>
+                  <button
+                    className="secondary"
+                    disabled={busy || !lines.length}
+                    onClick={() =>
+                      void run(async () =>
+                        setResult(
+                          await api<Result>("formulas/calculate", payload),
+                        ),
+                      )
+                    }
+                  >
+                    Calculate
+                  </button>
+                  <button
+                    className="primary"
+                    disabled={busy || !lines.length || !canEdit}
+                    onClick={() =>
+                      void run(async () => {
+                        setResult(await api<Result>("formulas/save", payload));
+                        await refresh();
+                        setNotice("Immutable recipe version saved.");
+                      })
+                    }
+                  >
+                    Save version
+                  </button>
+                </div>
+              </div>
+              {!data.ingredients.length && (
+                <div className="empty">
+                  <p>
+                    Import the workbook references or add an ingredient to
+                    begin.
+                  </p>
+                  <button
+                    className="text-button"
+                    onClick={() => setTab("Workbook import")}
+                  >
+                    Review source workbooks
+                    <ArrowDownToLine size={14} />
+                  </button>
+                </div>
+              )}
+              <div className="editor-actions border-top">
+                <label>
+                  Save status
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="pending-review">Pending review</option>
+                    {nutritionist && (
+                      <>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                      </>
+                    )}
+                  </select>
+                </label>
                 <button
-                  className="primary"
-                  disabled={busy || !lines.length || !canEdit}
+                  className="secondary"
+                  disabled={busy || !canEdit || !profileId || !lines.length}
                   onClick={() =>
                     void run(async () => {
-                      setResult(await api<Result>("formulas/save", payload));
-                      await refresh();
-                      setNotice("Immutable recipe version saved.");
+                      const r = await api<{
+                        status: string;
+                        message: string;
+                        lines?: FormulaLine[];
+                        calculation?: Result;
+                        compliance?: Result["compliance"];
+                      }>("formulas/optimize", payload);
+                      if (r.status === "optimal" && r.lines && r.calculation) {
+                        setLines(r.lines);
+                        setResult({
+                          ...r.calculation,
+                          compliance: r.compliance ?? [],
+                        });
+                        setNotice(
+                          "HiGHS found an optimum. Review the formulation before approval.",
+                        );
+                      } else setError(`${r.status}: ${r.message}`);
                     })
                   }
                 >
-                  Save version
+                  Find least-cost formula
                 </button>
               </div>
+              <p className="helper">
+                Optimization requires reviewed ingredients, compatible units and
+                a nutritionist-reviewed specification. Constraints are never
+                automatically relaxed. Minimum and maximum columns constrain the
+                solver.
+              </p>
             </div>
-            {!data.ingredients.length && (
-              <div className="empty">
-                <p>
-                  Import the workbook references or add an ingredient to begin.
-                </p>
-                <button
-                  className="text-button"
-                  onClick={() => setTab("Workbook import")}
-                >
-                  Review source workbooks
-                  <ArrowDownToLine size={14} />
-                </button>
-              </div>
-            )}
-            <div className="editor-actions border-top">
-              <label>
-                Save status
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="pending-review">Pending review</option>
-                  {nutritionist && (
-                    <>
-                      <option value="approved">Approved</option>
-                      <option value="rejected">Rejected</option>
-                    </>
-                  )}
-                </select>
-              </label>
-              <button
-                className="secondary"
-                disabled={busy || !canEdit || !profileId || !lines.length}
-                onClick={() =>
-                  void run(async () => {
-                    const r = await api<{
-                      status: string;
-                      message: string;
-                      lines?: FormulaLine[];
-                      calculation?: Result;
-                      compliance?: Result["compliance"];
-                    }>("formulas/optimize", payload);
-                    if (r.status === "optimal" && r.lines && r.calculation) {
-                      setLines(r.lines);
-                      setResult({
-                        ...r.calculation,
-                        compliance: r.compliance ?? [],
-                      });
-                      setNotice(
-                        "HiGHS found an optimum. Review the formulation before approval.",
-                      );
-                    } else setError(`${r.status}: ${r.message}`);
-                  })
-                }
-              >
-                Find least-cost formula
-              </button>
-            </div>
-            <p className="helper">
-              Optimization requires reviewed ingredients, compatible units and a
-              nutritionist-reviewed specification. Constraints are never
-              automatically relaxed. Minimum and maximum columns constrain the
-              solver.
-            </p>
-          </div>
-          {result && (
-            <>
-              <div className="stats-grid feed-stats">
-                {[
-                  ["Cost per kg", result.costPerKg],
-                  ["Batch cost", result.batchCost],
-                  ["25 kg bag", result.bag25],
-                  ["50 kg bag", result.bag50],
-                ].map(([label, v]) => (
-                  <article className="stat panel" key={label}>
-                    <div className="stat-label">{label}</div>
-                    <strong>{money(v)}</strong>
-                  </article>
-                ))}
-              </div>
-              <div className="panel">
-                <div className="panel-heading">
-                  <h2>Nutrient results</h2>
-                  <button
-                    className="text-button"
-                    onClick={() =>
-                      downloadCsv("feed-mixing-sheet.csv", [
-                        ["Recipe", name],
-                        ["Batch kg", batchKg],
-                        [
-                          "Status",
-                          "Draft; approval must be checked against saved version",
-                        ],
-                        ["Ingredient", "Percent", "kg"],
-                        ...result.quantities.map((q) => [
-                          q.name,
-                          q.percent,
-                          q.kg,
-                        ]),
-                        [],
-                        ["Nutrient", "Actual"],
-                        ...nutrientKeys.map((k) => [
-                          labels[k],
-                          result.nutrients[k],
-                        ]),
-                        [],
-                        ["Cost/kg", result.costPerKg],
-                      ])
-                    }
-                  >
-                    <Download size={14} />
-                    Mixing CSV
-                  </button>
+            {result && (
+              <>
+                <div className="stats-grid feed-stats">
+                  {[
+                    ["Cost per kg", result.costPerKg],
+                    ["Batch cost", result.batchCost],
+                    ["25 kg bag", result.bag25],
+                    ["50 kg bag", result.bag50],
+                  ].map(([label, v]) => (
+                    <article className="stat panel" key={label}>
+                      <div className="stat-label">{label}</div>
+                      <strong>{money(v)}</strong>
+                    </article>
+                  ))}
                 </div>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Nutrient</th>
-                        <th>Actual</th>
-                        <th>Minimum</th>
-                        <th>Maximum</th>
-                        <th>Specification check</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {nutrientKeys.map((k) => {
-                        const c = result.compliance?.find(
-                          (c) => c.nutrient === k,
-                        );
-                        return (
-                          <tr key={k}>
-                            <td>{labels[k]}</td>
-                            <td>
-                              {result.nutrients[k]?.toFixed(4) ?? "Unknown"}
-                            </td>
-                            <td>{c?.min ?? "—"}</td>
-                            <td>{c?.max ?? "—"}</td>
-                            <td>
-                              <span
-                                className={`status ${c?.status === "pass" ? "good" : ""}`}
-                              >
-                                {c?.status ?? "No specification"}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {result.issues.length > 0 && (
-                  <div className="validation-issues">
-                    <strong>Review before use</strong>
-                    <ul>
-                      {result.issues.map((s, i) => (
-                        <li key={i}>{s}</li>
-                      ))}
-                    </ul>
+                <div className="panel">
+                  <div className="panel-heading">
+                    <h2>Nutrient results</h2>
+                    <button
+                      className="text-button"
+                      onClick={() =>
+                        downloadCsv("feed-mixing-sheet.csv", [
+                          ["Recipe", name],
+                          ["Batch kg", batchKg],
+                          [
+                            "Status",
+                            "Draft; approval must be checked against saved version",
+                          ],
+                          ["Ingredient", "Percent", "kg"],
+                          ...result.quantities.map((q) => [
+                            q.name,
+                            q.percent,
+                            q.kg,
+                          ]),
+                          [],
+                          ["Nutrient", "Actual"],
+                          ...nutrientKeys.map((k) => [
+                            labels[k],
+                            result.nutrients[k],
+                          ]),
+                          [],
+                          ["Cost/kg", result.costPerKg],
+                        ])
+                      }
+                    >
+                      <Download size={14} />
+                      Mixing CSV
+                    </button>
                   </div>
-                )}
-              </div>
-            </>
-          )}
+                  <div className="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Nutrient</th>
+                          <th>Actual</th>
+                          <th>Minimum</th>
+                          <th>Maximum</th>
+                          <th>Specification check</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {nutrientKeys.map((k) => {
+                          const c = result.compliance?.find(
+                            (c) => c.nutrient === k,
+                          );
+                          return (
+                            <tr key={k}>
+                              <td>{labels[k]}</td>
+                              <td>
+                                {result.nutrients[k]?.toFixed(4) ?? "Unknown"}
+                              </td>
+                              <td>{c?.min ?? "—"}</td>
+                              <td>{c?.max ?? "—"}</td>
+                              <td>
+                                <span
+                                  className={`status ${c?.status === "pass" ? "good" : ""}`}
+                                >
+                                  {c?.status ?? "No specification"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {result.issues.length > 0 && (
+                    <div className="validation-issues">
+                      <strong>Review before use</strong>
+                      <ul>
+                        {result.issues.map((s, i) => (
+                          <li key={i}>{s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </fieldset>
         </>
       )}
       {tab === "Source catalog" && (
