@@ -11,13 +11,33 @@ export class HttpError extends Error {
 export function fail(status: number, message: string): never {
   throw new HttpError(status, message);
 }
+export async function boundedBody(request: Request, limit: number) {
+  const reader = request.body?.getReader();
+  if (!reader) return Buffer.alloc(0);
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const part = await reader.read();
+      if (part.done) break;
+      size += part.value.length;
+      if (size > limit) {
+        await reader.cancel().catch(() => {});
+        fail(413, "Request is too large.");
+      }
+      chunks.push(part.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks);
+}
 export async function jsonBody(request: Request) {
   if (!request.headers.get("content-type")?.includes("application/json"))
     fail(415, "Send JSON data.");
-  const text = await request.text();
-  if (Buffer.byteLength(text) > 256_000) fail(413, "Request is too large.");
+  const body = await boundedBody(request, 256_000);
   try {
-    return JSON.parse(text) as unknown;
+    return JSON.parse(body.toString("utf8")) as unknown;
   } catch {
     fail(400, "Invalid JSON data.");
   }

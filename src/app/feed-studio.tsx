@@ -1,6 +1,7 @@
 "use client";
 import { useFeedDraft } from "@/lib/use-feed-draft";
 import type { DraftContent } from "@/lib/draft-schema";
+import WorkbookUpload from "./workbook-upload";
 import SourceCatalog from "./source-catalog";
 import { useDialog } from "@/lib/use-dialog";
 import { useEffect, useState, useCallback, type FormEvent } from "react";
@@ -926,86 +927,100 @@ export default function FeedStudio({
         </section>
       )}
       {tab === "Workbook import" && (
-        <section className="panel">
-          <div className="panel-heading">
-            <h2>Source workbook migration</h2>
-            <span className="tag">PREVIEW BEFORE IMPORT</span>
-          </div>
-          <div className="module-padding">
-            <p className="muted">
-              Review the three supplied workbooks and their data-quality issues.
-              Confirmation preserves all original cells and cached formulas,
-              then adds 32 unverified ingredient references. No recipe aliases
-              or scientific corrections are applied automatically.
-            </p>
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() =>
-                void run(async () =>
-                  setPreview(await api<Preview>("imports/preview")),
-                )
-              }
-            >
-              <ArrowDownToLine size={15} />
-              Inspect supplied workbooks
-            </button>
-            {preview && (
-              <>
-                <div className="import-cards">
-                  {preview.workbooks.map((w) => (
-                    <article key={w.file}>
-                      <CheckCircle2 size={18} />
-                      <h3>{w.file}</h3>
-                      <p>
-                        {w.sheets
-                          .map(
-                            (s) =>
-                              `${s.name}: ${s.rows} rows, ${s.formulas} formulas`,
-                          )
-                          .join(" · ")}
-                      </p>
-                      <small>SHA-256 {w.hash.slice(0, 16)}…</small>
-                    </article>
-                  ))}
-                </div>
-                <div className="validation-issues">
-                  <strong>Import issues requiring review</strong>
-                  <ul>
-                    {preview.issues.map((s) => (
-                      <li key={s}>{s}</li>
+        <>
+          <WorkbookUpload
+            organizationId={organizationId}
+            canEdit={canEdit}
+            onImported={async (count) => {
+              await refresh();
+              setNotice(
+                `${count} unverified ingredient references imported from uploaded workbook.`,
+              );
+              setTab("Ingredients");
+            }}
+          />
+          <section className="panel">
+            <div className="panel-heading">
+              <h2>Source workbook migration</h2>
+              <span className="tag">PREVIEW BEFORE IMPORT</span>
+            </div>
+            <div className="module-padding">
+              <p className="muted">
+                Review the three supplied workbooks and their data-quality
+                issues. Confirmation preserves all original cells and cached
+                formulas, then adds 32 unverified ingredient references. No
+                recipe aliases or scientific corrections are applied
+                automatically.
+              </p>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () =>
+                    setPreview(await api<Preview>("imports/preview")),
+                  )
+                }
+              >
+                <ArrowDownToLine size={15} />
+                Inspect supplied workbooks
+              </button>
+              {preview && (
+                <>
+                  <div className="import-cards">
+                    {preview.workbooks.map((w) => (
+                      <article key={w.file}>
+                        <CheckCircle2 size={18} />
+                        <h3>{w.file}</h3>
+                        <p>
+                          {w.sheets
+                            .map(
+                              (s) =>
+                                `${s.name}: ${s.rows} rows, ${s.formulas} formulas`,
+                            )
+                            .join(" · ")}
+                        </p>
+                        <small>SHA-256 {w.hash.slice(0, 16)}…</small>
+                      </article>
                     ))}
-                  </ul>
-                </div>
-                <p className="helper">
-                  {preview.ingredients.length} ingredient rows · 7 worksheets ·
-                  no source formulas executed
-                </p>
-                <button
-                  className="primary"
-                  disabled={busy || !canEdit || data.imports.length > 0}
-                  onClick={() =>
-                    void run(async () => {
-                      const r = await api<{ count: number }>(
-                        "imports/confirm",
-                        { organizationId, confirmed: true },
-                      );
-                      await refresh();
-                      setNotice(
-                        `${r.count} unverified ingredient references imported with raw workbook audit.`,
-                      );
-                      setTab("Ingredients");
-                    })
-                  }
-                >
-                  {data.imports.length
-                    ? "Workbooks already imported"
-                    : "Confirm import as unverified data"}
-                </button>
-              </>
-            )}
-          </div>
-        </section>
+                  </div>
+                  <div className="validation-issues">
+                    <strong>Import issues requiring review</strong>
+                    <ul>
+                      {preview.issues.map((s) => (
+                        <li key={s}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p className="helper">
+                    {preview.ingredients.length} ingredient rows · 7 worksheets
+                    · no source formulas executed
+                  </p>
+                  <button
+                    className="primary"
+                    disabled={busy || !canEdit || data.imports.length > 0}
+                    onClick={() =>
+                      void run(async () => {
+                        const r = await api<{ count: number }>(
+                          "imports/confirm",
+                          { organizationId, confirmed: true },
+                        );
+                        await refresh();
+                        setNotice(
+                          `${r.count} unverified ingredient references imported with raw workbook audit.`,
+                        );
+                        setTab("Ingredients");
+                      })
+                    }
+                  >
+                    {data.imports.length
+                      ? "Workbooks already imported"
+                      : "Confirm import as unverified data"}
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+        </>
       )}
       {ingredientModal && (
         <div className="modal-backdrop">

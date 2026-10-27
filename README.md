@@ -55,3 +55,12 @@ This build needs a Node server, Python/SciPy and PostgreSQL. It is not a static 
 Feed studio keeps a private working draft for your account in each organization. Wait for **Draft saved** before closing the tab. Navigation within the app flushes pending edits; tab-local recovery can restore a failed save after returning or reloading. Incomplete drafts still need validation before creating an approved recipe version. Other users' private drafts are not shared with organization administrators.
 
 If another tab saves first, autosave pauses and keeps your local edits. Use **Download local draft** to preserve a JSON copy, then **Load saved draft** to explicitly replace this tab's edits. Failed saves offer retry; an unavailable initial draft disables editing until it can be loaded. Tab recovery is not a full offline mode and disappears when the tab is closed. Browser account changes require reloading before further saves.
+
+
+## Upload ingredient spreadsheets
+
+In Feed studio → Workbook import, upload an .xlsx file (2 MiB maximum), select the ingredient sheet, map the name/price/nutrient columns and choose explicit units. Preview the rows, use the error filter and resolve every row error, then confirm importing the unverified references. Header/column suggestions are editable; missing data stays unknown. Percentage-formatted Excel cells require fraction units. Concentration units apply to all mapped concentration columns; standardize mixed-unit data first. Prices are currently NGN.
+
+Original files and mapping/report snapshots are retained by organization. Use the upload history to download the original or a CSV audit report. Identical bytes reuse the same upload; retrying confirmation does not duplicate ingredients. Names are not merged into existing ingredients. This importer handles ingredient tables; use the supplied workbook workflow for the existing source catalog and projection baselines. Uploaded formulas are retained but never evaluated or accepted as numeric values.
+
+The parser requires the locked Python dependencies, including defusedxml, and Linux process resource limits. After updating dependencies, run `/workspace/.farmstead-venv/bin/pip install --cache-dir /workspace/.pip-cache -r requirements.lock.txt` and `npm run db:setup`. Keep `FARM_PYTHON` set as above. Server tracing includes the inspection worker. See PHASE_STATUS.md for all size/resource limits and the remaining scientific review and deployment gates.

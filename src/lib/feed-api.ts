@@ -1,3 +1,4 @@
+import { workbookUploadApi } from "./workbook-upload-api";
 import { draftApi } from "./draft-api";
 import { workbookCatalog } from "./workbook-catalog";
 import { catalogApi, stageCatalog } from "./catalog-api";
@@ -77,6 +78,8 @@ export async function feedApi(
   user: { id: string },
   path: string,
 ) {
+  const uploadResponse = await workbookUploadApi(request, user, path);
+  if (uploadResponse) return uploadResponse;
   const draftResponse = await draftApi(request, user, path);
   if (draftResponse) return draftResponse;
   const catalogResponse = await catalogApi(request, user, path);

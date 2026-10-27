@@ -1685,3 +1685,28 @@ textarea {
 .draft-editor:disabled {
   opacity: 0.6;
 }
+.upload-form {
+  display: flex;
+  gap: 20px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.upload-form label {
+  flex: 1;
+  min-width: 200px;
+}
+.upload-summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+}
+.upload-summary small {
+  font-size: 9px;
+  overflow-wrap: anywhere;
+  flex-basis: 100%;
+  color: var(--muted);
+}

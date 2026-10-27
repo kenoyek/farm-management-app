@@ -29,7 +29,7 @@ export function downloadCsv(name: string, rows: (string | number | null)[][]) {
       row
         .map((value) => {
           let s = value === null ? "" : String(value);
-          if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+          if (/^(?:\s*[=+\-@]|[\t\r\n])/.test(s)) s = "'" + s;
           return '"' + s.replaceAll('"', '""') + '"';
         })
         .join(","),
