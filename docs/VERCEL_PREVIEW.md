@@ -78,3 +78,6 @@ The source-alias review update applied migration 013 before its Git-triggered ap
 
 
 For the expanded nutrient update, deploy the backward-compatible Python worker accepting eleven constraints before pushing the app, and apply migration 014 separately. The worker still accepts the original seven-row protocol. Its authenticated hosted eleven-row solve was checked against a known objective; static helper scripts remain private. Existing app/worker environment credentials and restrictions are retained. The current original workbook inspector and Excel writer do not require protocol changes.
+
+
+The nutrient update passed 21 hosted API/browser checks after deployment, including real eleven-constraint optimization, unknown-data refusal, expanded workbook mapping, source-isolated reports, persisted controls and mobile rendering. An independent read of its downloaded XLSX confirmed all four measured concentrations, including numeric zero. Operational smoke fixtures are labeled synthetic and private; local cleanup suites remain restricted to the local test database.

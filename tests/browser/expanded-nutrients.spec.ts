@@ -223,14 +223,12 @@ test("edits expanded measurements, reviews eleven nutrient limits and exports th
     await expect(
       page.getByLabel("percent ingredient 2", { exact: true }),
     ).toHaveValue("25");
-    const result = page
-      .getByRole("table")
-      .filter({
-        has: page.getByRole("columnheader", {
-          name: "Specification check",
-          exact: true,
-        }),
-      });
+    const result = page.getByRole("table").filter({
+      has: page.getByRole("columnheader", {
+        name: "Specification check",
+        exact: true,
+      }),
+    });
     await expect(
       result
         .getByRole("row")
