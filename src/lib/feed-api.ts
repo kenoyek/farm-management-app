@@ -1,3 +1,4 @@
+import { recipeReportApi } from "./recipe-report-api";
 import { profileApi } from "./profile-api";
 import { profileRuleIssues } from "./profile-rules";
 import { workbookUploadApi } from "./workbook-upload-api";
@@ -61,6 +62,8 @@ export async function feedApi(
   user: { id: string },
   path: string,
 ) {
+  const reportResponse = await recipeReportApi(request, user, path);
+  if (reportResponse) return reportResponse;
   const profileResponse = await profileApi(request, user, path);
   if (profileResponse) return profileResponse;
   const uploadResponse = await workbookUploadApi(request, user, path);
@@ -460,6 +463,7 @@ export async function feedApi(
             400,
             "Approval needs a nutritionist and complete compliant, reviewed reference data.",
           );
+        const savedResult = { ...result, savedBy: user.id };
         const r = await c.query(
           "INSERT INTO formula_versions(organization_id,name,batch_kg,profile_id,parent_id,lines,ingredient_snapshot,result,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id",
           [
@@ -474,7 +478,7 @@ export async function feedApi(
                 input.lines.some((l) => l.ingredientId === i.id),
               ),
             ),
-            JSON.stringify(result),
+            JSON.stringify(savedResult),
             input.status,
           ],
         );
@@ -484,7 +488,7 @@ export async function feedApi(
           `formula.${input.status}`,
           r.rows[0].id,
         );
-        return { id: r.rows[0].id, ...result };
+        return { id: r.rows[0].id, ...savedResult };
       }),
     );
   }

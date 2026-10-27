@@ -1,6 +1,7 @@
 "use client";
 import { useFeedDraft } from "@/lib/use-feed-draft";
 import type { DraftContent } from "@/lib/draft-schema";
+import RecipeLibrary from "./recipe-library";
 import WorkbookUpload from "./workbook-upload";
 import Specifications, { ProfileRules } from "./specifications";
 import type { RequirementProfile } from "@/lib/profile-rules";
@@ -888,73 +889,21 @@ export default function FeedStudio({
         </section>
       )}
       {tab === "Recipe library" && (
-        <section className="panel">
-          <div className="panel-heading">
-            <h2>Saved formula versions</h2>
-            <span className="tag">HISTORY PRESERVED</span>
-          </div>
-          {data.formulas.length ? (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Recipe</th>
-                    <th>Status</th>
-                    <th>Batch kg</th>
-                    <th>₦ / kg</th>
-                    <th>Saved</th>
-                    <th>Version</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.formulas.map((f) => (
-                    <tr key={f.id}>
-                      <td>{f.name}</td>
-                      <td>
-                        <span
-                          className={`status ${f.status === "approved" ? "good" : ""}`}
-                        >
-                          {f.status}
-                        </span>
-                      </td>
-                      <td>{f.batch_kg}</td>
-                      <td>{f.result.costPerKg ?? "Unknown"}</td>
-                      <td>
-                        {new Date(f.created_at).toLocaleDateString("en-NG")}
-                      </td>
-                      <td>
-                        <button
-                          className="text-button"
-                          onClick={() => {
-                            setName(f.name);
-                            setLines(f.lines);
-                            setBatchKg(Number(f.batch_kg));
-                            setProfileId(f.profile_id ?? "");
-                            setParentId(f.id);
-                            setStatus("draft");
-                            setResult(f.result);
-                            setTab("Formulator");
-                          }}
-                        >
-                          Clone & edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty">
-              <FlaskConical size={30} />
-              <h3>Your recipe library starts with one formula</h3>
-              <p>
-                Save a formulation to keep its inputs, reference snapshot and
-                calculated results.
-              </p>
-            </div>
-          )}
-        </section>
+        <RecipeLibrary
+          organizationId={organizationId}
+          recipes={data.formulas}
+          onClone={(id) => {
+            const f = data.formulas.find((f) => f.id === id)!;
+            setName(f.name);
+            setLines(f.lines);
+            setBatchKg(Number(f.batch_kg));
+            setProfileId(f.profile_id ?? "");
+            setParentId(f.id);
+            setStatus("draft");
+            setResult(null);
+            setTab("Formulator");
+          }}
+        />
       )}
       {tab === "Workbook import" && (
         <>

@@ -12,3 +12,6 @@ Layers: first week 35kg/₦10080/497.5 closing; full 24-week cached totals withi
 
 ## Release evidence
 Record commands and exact pass/fail/skipped counts per phase in PHASE_STATUS.md. A successful build is not an end-to-end test; zero tests is not acceptance. Nutrition approval, production load, disaster recovery and independent security review remain separate gates. Tests may demonstrate local readiness without claiming a commercial release.
+
+
+Saved-recipe reporting: compare different saved batches at a common planning weight with exact decimal costs and baseline reversal; retain null/zero and incomplete inclusion semantics; withhold nutrient deltas across missing/incompatible contexts; preserve each recipe's own specification checks and exact-reference identity. Download genuine owner/auditor-visible reports, deny outsiders/forged organization IDs and mixed-tenant comparisons, retain stable historical exports after reference/profile revisions, and refuse incomplete historical evidence without mutation. Read generated XLSX back to verify values, monetary text, literal formula-like names, unknown cells and XML text handling. Browser tests cover comparisons, both saved mixing formats, mobile layout and persistence.

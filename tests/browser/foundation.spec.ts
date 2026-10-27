@@ -161,7 +161,7 @@ test("register, create organization and farm, reload persistence, mobile navigat
       page
         .getByRole("row")
         .filter({ hasText: "My feed recipe" })
-        .getByText("230.0000", { exact: true }),
+        .getByText("₦230.0000", { exact: true }),
     ).toBeVisible();
     await page
       .getByRole("button", { name: "Projections", exact: true })

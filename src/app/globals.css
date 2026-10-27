@@ -1732,3 +1732,24 @@ textarea {
 .profile-rules {
   margin: 14px 0;
 }
+
+.recipe-version-id {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  margin-top: 5px;
+  font-weight: 400;
+}
+.recipe-actions {
+  flex-wrap: wrap;
+  min-width: 185px;
+}
+.recipe-comparison {
+  margin-top: 20px;
+}
+.recipe-comparison th,
+.recipe-comparison td {
+  min-width: 175px;
+  vertical-align: top;
+}

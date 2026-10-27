@@ -55,3 +55,20 @@ export function downloadJson(name: string, value: unknown) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+export async function downloadReport(path: string, filename: string) {
+  const response = await fetch(`/api/${path}`, { cache: "no-store" });
+  if (!response.ok) {
+    const value = await response.json().catch(() => ({}));
+    throw new ApiError(
+      response.status,
+      value.error ?? "Report download failed.",
+    );
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
