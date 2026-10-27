@@ -1,0 +1,514 @@
+[
+  {
+    "id": "wb-7",
+    "name": "Maize",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B7:J7",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 3400.0,
+      "protein": 9.0,
+      "dryMatter": 88.0,
+      "calcium": 0.01,
+      "phosphorus": 0.27,
+      "methionine": 0.18,
+      "lysine": 0.25
+    },
+    "price": 230.0
+  },
+  {
+    "id": "wb-8",
+    "name": "Sorghum",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B8:J8",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2810.0,
+      "protein": 10.0,
+      "dryMatter": 89.9,
+      "calcium": 0.04,
+      "phosphorus": 0.34,
+      "methionine": 0.16,
+      "lysine": 0.23
+    },
+    "price": null
+  },
+  {
+    "id": "wb-9",
+    "name": "Wheat bran",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B9:J9",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 1810.0,
+      "protein": 16.0,
+      "dryMatter": 88.0,
+      "calcium": 0.1,
+      "phosphorus": 0.3,
+      "methionine": 0.25,
+      "lysine": 0.9
+    },
+    "price": 160.0
+  },
+  {
+    "id": "wb-10",
+    "name": "Maize bran",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B10:J10",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2500.0,
+      "protein": 11.0,
+      "dryMatter": 95.0,
+      "calcium": 0.01,
+      "phosphorus": 0.06,
+      "methionine": 0.18,
+      "lysine": 0.25
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-11",
+    "name": "Sorghum bran",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B11:J11",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2600.0,
+      "protein": 12.0,
+      "dryMatter": 100.0,
+      "calcium": 0.01,
+      "phosphorus": 0.09,
+      "methionine": 0.18,
+      "lysine": 0.25
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-12",
+    "name": "Low rice flour",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B12:J12",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2900.0,
+      "protein": 12.0,
+      "dryMatter": 88.0,
+      "calcium": 0.1,
+      "phosphorus": 10.0,
+      "methionine": 0.24,
+      "lysine": 0.5
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-13",
+    "name": "Wheat flour",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B13:J13",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 3400.0,
+      "protein": 9.25,
+      "dryMatter": 88.0,
+      "calcium": 0.01,
+      "phosphorus": 0.27,
+      "methionine": 0.34,
+      "lysine": 0.25
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-14",
+    "name": "Maize chaff",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B14:J14",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 3122.0,
+      "protein": 22.0,
+      "dryMatter": 90.0,
+      "calcium": 0.3,
+      "phosphorus": 0.5,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-15",
+    "name": "Brewers Spent Grain",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B15:J15",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 1980.0,
+      "protein": 18.0,
+      "dryMatter": 90.0,
+      "calcium": 0.53,
+      "phosphorus": 0.56,
+      "methionine": 0.4,
+      "lysine": 0.9
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-16",
+    "name": "Non defatted soybean meal",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B16:J16",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 3100.0,
+      "protein": 42.0,
+      "dryMatter": 90.0,
+      "calcium": 0.2,
+      "phosphorus": 0.5,
+      "methionine": 0.65,
+      "lysine": 2.8
+    },
+    "price": 120.0
+  },
+  {
+    "id": "wb-17",
+    "name": "Defatted Soybean meal",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B17:J17",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2560.0,
+      "protein": 46.0,
+      "dryMatter": 90.0,
+      "calcium": 0.28,
+      "phosphorus": 0.75,
+      "methionine": null,
+      "lysine": 3.05
+    },
+    "price": 330.0
+  },
+  {
+    "id": "wb-18",
+    "name": "Cotton Seed meal",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B18:J18",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2146.0,
+      "protein": 41.0,
+      "dryMatter": 91.0,
+      "calcium": 0.25,
+      "phosphorus": 1.28,
+      "methionine": 0.4,
+      "lysine": 1.15
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-19",
+    "name": "Groundnut cake",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B19:J19",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2640.0,
+      "protein": 45.0,
+      "dryMatter": 92.0,
+      "calcium": 0.2,
+      "phosphorus": 0.2,
+      "methionine": 0.48,
+      "lysine": 0.25
+    },
+    "price": 125.0
+  },
+  {
+    "id": "wb-20",
+    "name": "Palmkernel Cake",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B20:J20",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2178.0,
+      "protein": 15.4,
+      "dryMatter": 88.0,
+      "calcium": 0.2,
+      "phosphorus": 0.16,
+      "methionine": 0.39,
+      "lysine": 0.64
+    },
+    "price": 30.0
+  },
+  {
+    "id": "wb-21",
+    "name": "Sunflower meal",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B21:J21",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 1914.0,
+      "protein": 37.0,
+      "dryMatter": 89.0,
+      "calcium": 0.5,
+      "phosphorus": 0.3,
+      "methionine": 1.3,
+      "lysine": 1.6
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-22",
+    "name": "Soy flour",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B22:J22",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2420.0,
+      "protein": 36.6,
+      "dryMatter": 88.0,
+      "calcium": 0.2,
+      "phosphorus": 0.33,
+      "methionine": 0.59,
+      "lysine": 2.8
+    },
+    "price": 120.0
+  },
+  {
+    "id": "wb-23",
+    "name": "Fishmeal",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B23:J23",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 3000.0,
+      "protein": 65.0,
+      "dryMatter": 92.0,
+      "calcium": 2.2,
+      "phosphorus": 1.8,
+      "methionine": 1.8,
+      "lysine": 4.5
+    },
+    "price": 560.0
+  },
+  {
+    "id": "wb-24",
+    "name": "Bloodmeal",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B24:J24",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 3344.0,
+      "protein": 88.4,
+      "dryMatter": 87.3,
+      "calcium": 0.25,
+      "phosphorus": 0.21,
+      "methionine": 28.8,
+      "lysine": 63.0
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-25",
+    "name": "Yeast",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B25:J25",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2420.0,
+      "protein": 30.0,
+      "dryMatter": 93.0,
+      "calcium": 0.1,
+      "phosphorus": 0.46,
+      "methionine": 0.7,
+      "lysine": 3.4
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-26",
+    "name": "Oyster Shell",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B26:J26",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": 99.5,
+      "calcium": 35.0,
+      "phosphorus": 0.05,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 30.0
+  },
+  {
+    "id": "wb-27",
+    "name": "Bone powder",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B27:J27",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": 99.0,
+      "calcium": 37.0,
+      "phosphorus": 15.0,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 60.0
+  },
+  {
+    "id": "wb-28",
+    "name": "Salt",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B28:J28",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": null,
+      "calcium": null,
+      "phosphorus": null,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 55.0
+  },
+  {
+    "id": "wb-29",
+    "name": "Iron Sulphate",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B29:J29",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": null,
+      "calcium": null,
+      "phosphorus": null,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-30",
+    "name": "Méthionine",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B30:J30",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": null,
+      "calcium": null,
+      "phosphorus": null,
+      "methionine": 100.0,
+      "lysine": null
+    },
+    "price": 1560.0
+  },
+  {
+    "id": "wb-31",
+    "name": "Lysine",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B31:J31",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": null,
+      "calcium": null,
+      "phosphorus": null,
+      "methionine": null,
+      "lysine": 94.0
+    },
+    "price": 500.0
+  },
+  {
+    "id": "wb-32",
+    "name": "Broiler Concentrate 5%",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B32:J32",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2760.0,
+      "protein": 21.0,
+      "dryMatter": null,
+      "calcium": 15.0,
+      "phosphorus": 6.0,
+      "methionine": 5.0,
+      "lysine": 5.5
+    },
+    "price": 990.0
+  },
+  {
+    "id": "wb-33",
+    "name": "Pullet Concentrate",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B33:J33",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2100.0,
+      "protein": 42.0,
+      "dryMatter": null,
+      "calcium": null,
+      "phosphorus": 3.3,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 596.0
+  },
+  {
+    "id": "wb-34",
+    "name": "DCP",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B34:J34",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": null,
+      "calcium": null,
+      "phosphorus": null,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 0.0
+  },
+  {
+    "id": "wb-35",
+    "name": "Premix pullets",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B35:J35",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": null,
+      "calcium": null,
+      "phosphorus": null,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 480.0
+  },
+  {
+    "id": "wb-36",
+    "name": "Pork Concentrate",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B36:J36",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": 2650.0,
+      "protein": 40.0,
+      "dryMatter": 95.0,
+      "calcium": 3.75,
+      "phosphorus": 0.8,
+      "methionine": 0.7,
+      "lysine": 3.45
+    },
+    "price": 500.0
+  },
+  {
+    "id": "wb-37",
+    "name": "Premix broiler starter",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B37:J37",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": null,
+      "calcium": null,
+      "phosphorus": null,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 480.0
+  },
+  {
+    "id": "wb-38",
+    "name": "Premix growers",
+    "source": "Feed Formula Calculator.xlsx / Nutritional Intake!B38:J38",
+    "reviewStatus": "unverified",
+    "nutrients": {
+      "energy": null,
+      "protein": null,
+      "dryMatter": null,
+      "calcium": null,
+      "phosphorus": null,
+      "methionine": null,
+      "lysine": null
+    },
+    "price": 480.0
+  }
+]

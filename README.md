@@ -1,0 +1,50 @@
+# Farmstead
+
+A working first release of the farm management platform described in [the requirements](docs/PRODUCT_REQUIREMENTS.md). See [phase status and limitations](docs/PHASE_STATUS.md) before treating any module as complete or ready for production.
+
+## Develop locally
+
+Requirements: Node 24, npm 11, Python 3.12+, Docker with PostgreSQL 17 support, Linux system Chromium for browser tests.
+
+```sh
+npm ci --cache /workspace/.npm-cache
+python -m venv /workspace/.farmstead-venv
+/workspace/.farmstead-venv/bin/pip install --cache-dir /workspace/.pip-cache -r requirements.lock.txt
+npm run db:setup
+export FARM_PYTHON=/workspace/.farmstead-venv/bin/python
+npm run dev
+```
+
+Use the existing checkout in the isolated task; do not create a worktree unless explicitly requested. The app listens on port 3000. `db:setup` is repeatable: it preserves the database, generates local random credentials once, applies pending migrations and configures a restricted application login. It never seeds fictional farms. Register in the application, create an organization, then add a farm. In Feed studio → Workbook import, preview the three supplied files and explicitly confirm importing unverified references. Review or create ingredients, formulate and save draft recipes. In Production, stock a flock/batch/pond and add dated daily records. In Projections, calculate and save scenarios separately from actuals.
+
+Local database data lives in ignored `.local/pgdata`; credentials are in ignored `.local/` and `.env.local`. Do not delete those files to “reset” setup. Preserve them together. Only local development credentials are generated, never production credentials. A stopped Docker daemon/container must restart for the app to use PostgreSQL. No external account, paid subscription or API key is required for the verified local workflow.
+
+## Validate
+
+```sh
+export FARM_PYTHON=/workspace/.farmstead-venv/bin/python
+npm test
+/workspace/.farmstead-venv/bin/python -m pytest tests/python -q
+npm run lint
+npm run typecheck
+npm run build
+E2E_START_COMMAND='npm run start' npm run test:e2e
+```
+
+Playwright uses `/usr/bin/chromium`; set `CHROMIUM_PATH` to a system installation elsewhere. The test runner starts the app if port 3000 is unused; stop only a server you started if you need to test a different mode. Browser and integration tests create isolated fixture organizations and clean them up. Integration tests refuse an unrelated database unless an explicit test-only admin connection is supplied. Never point these tests at production. Tests use a local administrator fixture helper; application code does not import it.
+
+## Data and calculation evidence
+
+The seven requested documents are in `docs/`. [Workbook analysis](docs/WORKBOOK_ANALYSIS.md) explains defects and migration mappings; [the full cell inventory](docs/WORKBOOK_CELL_INVENTORY.md) preserves every nonempty cell, formula, cached result and workbook hash. Source originals remain in `data/source/`. Reproduce with:
+
+```sh
+/workspace/.farmstead-venv/bin/python scripts/inspect_workbooks.py
+```
+
+Imported scientific values stay unverified. Zero/blank prices and missing nutrients are distinct. Only assigned nutritionists can register reviewed profiles or approve scientifically complete formulas. Ingredients carry species/stage eligibility, nutrient bases, inclusion limits and quotation dates. The solver uses SciPy HiGHS; it does not fabricate infeasible solutions or relax constraints. Catfish formulation is blocked until dedicated digestible nutrient definitions and constraints exist. Numerical optimization is not permission to manufacture feed.
+
+## Architecture and deployment
+
+Next.js App Router + strict TypeScript, Zod, PostgreSQL RLS, Decimal.js, Recharts and a bounded Python/HiGHS worker. Local identities use scrypt and hashed opaque sessions. The application login `farm_server` is not a superuser and cannot directly query tenant tables; each operational transaction switches to a non-bypass RLS role and sets a transaction-local user context. Migrations run with a separate administrative connection. [Database architecture](docs/DATABASE_ARCHITECTURE.md) records the design and Supabase migration boundary.
+
+This build needs a Node server, Python/SciPy and PostgreSQL. It is not a static export. For deployment, run reviewed migrations with `MIGRATION_DATABASE_URL`, provision a restricted `farm_server` login securely, set `DATABASE_URL`, set `APP_ORIGIN` to the canonical HTTPS application origin and set `FARM_PYTHON` to the installed worker interpreter. `npm run build` followed by `npm run start` runs the app. Do not deploy local administrator credentials. Managed Supabase Auth/Storage integration, password reset/email verification, distributed rate limiting, account recovery, monitoring, backups/restore drills, upload hardening and independent security review remain production gates. No hosted deployment or cloud publication is performed by the setup scripts.

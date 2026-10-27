@@ -1,0 +1,28 @@
+# Workbook analysis
+
+The actual uploaded workbooks contain seven worksheets. See [complete cell inventory](WORKBOOK_CELL_INVENTORY.md) and `data/workbook-audit.json` for every nonempty cell, formula, cached value, number format and SHA-256. `scripts/inspect_workbooks.py` reproduces these artifacts. No formulas/macros are executed; openpyxl reads source and cached results separately.
+
+## Feed Formula Calculator.xlsx
+- Dietary Needs (39×10): B8:J39 holds 32 species/stage rows. C protein ranges, D lipids, E cellulose, F Ca, G phosphorus, H lysine, I methionine, J energy. Strings include decimal commas and embedded spaces (`16,5-17`, `2 600-2 700`). A scalar is not automatically a minimum or maximum. Fish categories are generic, not a validated African catfish specification.
+- Ingredient Level (34×6): B5:B34 contains 30 ingredient labels; C:F are starter/grower/layer/breeder percentage ranges. Empty constraints mean unknown, not unrestricted or zero. `0 to 0,5` salt requires locale-aware normalization. Sunflower, yeast, amino acids and minerals have absent ranges. These are not broiler finisher-specific restrictions.
+- Nutritional Intake (38×10): B7:J38, 32 raw materials; energy kcal/kg, protein/dry matter/Ca/P/methionine/lysine percentage, historical N/kg prices. All need provenance, nutrient basis and verification dates. Zero/blank prices cannot qualify for real optimization.
+- Broiler Starter and Broiler Finisher (each 42×14, 254 formulas): C8:C41 labels, D inclusions, E energy, F protein, G dry matter, H calcium, I phosphorus, J methionine, K lysine, L cost. Row 7 sums weighted contributions, row 6 divides by total inclusion, M6 costs a 25 kg bag. These are genuine recipes, not merely requirement tables.
+
+Starter inputs: maize 55%, wheat bran 10%, defatted soybean 30%, concentrate 5%. Cached: 2957 kcal/kg, CP 21.4%, Ca 0.8495%, P 0.7035%, Met 0.374%, Lys 1.4175%, ₦291/kg, ₦7275/25kg. Finisher: 52/23/20/5%; 2834.3 kcal/kg, CP 18.61%, Ca 0.8342%, P 0.6594%, Met 0.4011%, Lys 1.222%, ₦271.9/kg, ₦6797.5/25kg.
+
+**Defects:** both G contribution columns are empty so cached dry matter is zero despite source data; defatted soybean H17 (methionine) is missing but spreadsheets treat it as zero, so recipe Met is incomplete. Both reference rows 39/40 beyond the nutrient table for toxinbinder/egg booster. Sorghum row 9 lacks energy/protein formulas in both recipes. Recipe limestone maps to Oyster Shell; corn germ maps to Maize chaff; piglet premix maps to Pork Concentrate; Vita C/enzyme map to broiler/grower premix. Never accept these aliases automatically. Both recipes normalize by D6 and thereby conceal an inclusion sum other than 100%; zero total divides by zero. No nutrition compliance test exists. Starter calcium is below the table's 1%; finisher energy exceeds listed 2700–2800; phosphorus basis is unspecified, so those comparisons are descriptive only.
+
+Suspicious source values: Dietary Needs I30=47 and I36=22 methionine; Nutritional Intake G12=10 phosphorus in low rice flour; H24=28.8 methionine and I24=63 lysine in bloodmeal. These require review, not guessed decimal corrections. Fat/fibre requirements have no matching ingredient composition columns. Concentrate/mineral/premix missing values must not become measured zeros.
+
+## Layers Feed Projection.xlsx
+One Sheet1 (42×21), main table C10:K33 = 24 weeks; row 34 totals. Opening 500 birds, rations 10–115g (10+5/week through week 22, then 115g). Price ₦288 weeks 1–8, ₦260 weeks 9–18, ₦290 weeks 19–24. Weekly mortality 0.005 weeks 1–8, 0.001 thereafter (0.5% and 0.1%, not 0.005%). Feed assumes all opening birds eat for seven days. J expected deaths is fractional, K closing stock carries unrounded into next opening. L13/17/21/25 are cumulative feed costs, not monthly costs. P20:P27, R29:R34 and U22:U42 are unlabeled scratch copies/partial sums; retain as raw evidence, do not import as additional transactions.
+
+Cached totals: F34=5369.915337kg, H34=₦1483006.278, J34=27.2816491 expected deaths; K33=472.7183509 birds. Operational animal records require integer counts; forecast expected counts remain decimal. Sources do not include a laying-cycle ration model or actual inventory ledger.
+
+## Layers Egg Production.xlsx
+One Sheet1 (29×14); E11:N28 = 18 months; row 29 totals. Opening 1418 birds; mortality 0.005 each month; lay 45% month 1, 80% months 2–17, 75% month 18. Cracks 0.005 months 1–17 and 0.01 month 18. Every J formula hard-codes 28 days. M is fractional 30-egg crates, not a count of complete physical trays. Closing birds carries expected fractional mortality.
+
+First month 17866.8 gross eggs, 89.334 cracked, 592.5822 saleable crate equivalents, 1410.91 closing birds. Totals M29=17651.89312 saleable crates, L29=93.28348768 cracked crate equivalents. L29's conversion changes units from cracked eggs above it; label explicitly. Final stock 1295.661888. Preserve 28-day legacy scenario as a version; new calendar forecasts use actual month lengths. No egg selling prices, egg grades or actual collections are in the workbook.
+
+## Mapping and import boundaries
+Requirements → staged nutrient requirement profiles; ingredient limits → stage/ingredient restrictions; raw material rows → unverified ingredient nutrient/price versions; recipes → draft formula versions; projection rows → forecast scenario assumptions/results. Each normalized field retains workbook hash/sheet/cell. Preview detects aliases, missing/zero prices, missing nutrients, ambiguous ranges, unsupported/external/circular formulas and dimensional mismatches. Confirmation imports atomically with audit; original bytes remain immutable. Never infer an approved scientific profile from spreadsheet formatting or cached results.
