@@ -24,6 +24,11 @@ export type Ingredient = {
   quoted_on?: string;
   inclusion_min?: string | number;
   inclusion_max?: string | number;
+  category?: string | null;
+  supplier?: string | null;
+  laboratory_on?: string | null;
+  certificate_reference?: string | null;
+  processing_notes?: string | null;
 };
 export type FormulaLine = {
   ingredientId: string;

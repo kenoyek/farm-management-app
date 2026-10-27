@@ -5,6 +5,7 @@ import type { CatalogRow, SourceField } from "@/lib/workbook-catalog";
 import type { Ingredient } from "@/lib/feed";
 import type { AliasReview } from "@/lib/catalog-review";
 import CatalogAliasReview from "./catalog-alias-review";
+import SourceRecipeImport from "./source-recipe-import";
 type StoredRow = CatalogRow & { id: string; alias_review?: AliasReview | null };
 function normalized(field: SourceField) {
   const p = field.parsed;
@@ -24,11 +25,13 @@ export default function SourceCatalog({
   canEdit,
   ingredients,
   canReview,
+  onImported,
 }: {
   organizationId: string;
   canEdit: boolean;
   ingredients: Ingredient[];
   canReview: boolean;
+  onImported: () => Promise<void>;
 }) {
   const [previewing, setPreviewing] = useState(false);
   const [rows, setRows] = useState<StoredRow[]>([]),
@@ -167,6 +170,14 @@ export default function SourceCatalog({
           </label>
         )}
       </div>
+      {category === "recipe" && !previewing && (
+        <SourceRecipeImport
+          organizationId={organizationId}
+          canEdit={canEdit}
+          ingredients={ingredients}
+          onImported={onImported}
+        />
+      )}
       {!rows.length ? (
         <div className="empty">
           <h3>No staged source references yet</h3>

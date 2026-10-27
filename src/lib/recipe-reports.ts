@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { z } from "zod";
 import { nutrientKeys, type Nutrient, type Nutrients } from "./feed";
 import { coreNutrientKeys, nutrientLabels } from "./nutrients";
+import { sourceRecipeEvidence } from "./source-recipes";
 export { nutrientLabels } from "./nutrients";
 
 const amount = z
@@ -38,6 +39,11 @@ const reference = z.object({
   inclusion_max: amount.optional(),
   upload_id: z.uuid().nullable().optional(),
   upload_row: z.number().nullable().optional(),
+  category: z.string().nullable().optional(),
+  supplier: z.string().nullable().optional(),
+  laboratory_on: z.string().nullable().optional(),
+  certificate_reference: z.string().nullable().optional(),
+  processing_notes: z.string().nullable().optional(),
 });
 const range = z.object({
   min: z.number().finite().optional(),
@@ -119,6 +125,7 @@ const recipeSchema = z.object({
     modelVersion: z.number().optional(),
   }),
   profile_reference: z.unknown().optional(),
+  source_recipe: sourceRecipeEvidence.nullable().optional(),
 });
 export type RecipeReport = ReturnType<typeof recipeReport>;
 
@@ -147,6 +154,7 @@ export function recipeReport(raw: unknown) {
     };
   });
   return {
+    ...(recipe.source_recipe ? { sourceRecipe: recipe.source_recipe } : {}),
     id: recipe.id,
     name: recipe.name,
     status: recipe.status,
@@ -336,7 +344,17 @@ export function recipeSheets(
     ["Saved review issues"],
     ...report.issues.map((issue) => [issue]),
   ];
-  return [
+  const provenanceFields = [
+    "category",
+    "supplier",
+    "laboratory_on",
+    "certificate_reference",
+    "processing_notes",
+  ] as const;
+  const hasProvenance = report.allocations.some((a) =>
+    provenanceFields.some((k) => Object.hasOwn(a.reference, k)),
+  );
+  const sheets: ReportSheet[] = [
     { name: "Mixing sheet", rows: mixing, headerRows: [1, 16] },
     {
       name: "Nutrients",
@@ -386,6 +404,15 @@ export function recipeSheets(
           "Upload UUID",
           "Upload row",
           "Source evidence",
+          ...(hasProvenance
+            ? [
+                "Category",
+                "Supplier / manufacturer",
+                "Laboratory analysis date",
+                "Certificate / document",
+                "Quality / processing notes",
+              ]
+            : []),
         ],
         ...report.allocations.map(({ reference: i }) => [
           i.name,
@@ -406,6 +433,7 @@ export function recipeSheets(
           i.upload_id ?? null,
           i.upload_row ?? null,
           i.source,
+          ...(hasProvenance ? provenanceFields.map((k) => i[k] ?? null) : []),
         ]),
       ],
     },
@@ -441,6 +469,46 @@ export function recipeSheets(
       ],
     },
   ];
+  if (report.sourceRecipe)
+    sheets.push({
+      name: "Source recipe audit",
+      headerRows: [1, 6],
+      rows: [
+        [
+          "Source recipe evidence",
+          "Unapproved draft; unspecified inclusions were explicitly omitted, not set to zero.",
+        ],
+        ["Workbook SHA-256", report.sourceRecipe.sourceHash],
+        ["Source sheet", report.sourceRecipe.sheet],
+        ["Preview SHA-256", report.sourceRecipe.previewDigest],
+        [],
+        [
+          "Source cell",
+          "Original label",
+          "Original inclusion",
+          "Mapped reference UUID",
+          "Identity decision",
+          "Review UUID",
+          "Review version",
+          "Reviewer UUID",
+          "Review evidence",
+          "Original source warnings",
+        ],
+        ...report.sourceRecipe.rows.map((r) => [
+          `${r.sheet}!${r.fields.inclusion.cell}`,
+          r.label,
+          r.fields.inclusion.raw,
+          r.alias_review?.ingredient_id ?? null,
+          r.alias_review?.decision ?? "Not reviewed",
+          r.alias_review?.id ?? null,
+          r.alias_review?.revision ?? null,
+          r.alias_review?.reviewer_id ?? null,
+          r.alias_review?.evidence ?? null,
+          r.issues.join("\n"),
+        ]),
+      ],
+    });
+  return sheets;
 }
 export function sheetsCsv(sheets: ReportSheet[]) {
   return sheets

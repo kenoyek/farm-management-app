@@ -218,6 +218,11 @@ export default function FeedStudio({
         phosphorusBasis: f.get("phosphorusBasis"),
         quotedOn: f.get("quotedOn") || null,
         nutrients: values,
+        category: f.get("category") || null,
+        supplier: f.get("supplier") || null,
+        laboratoryOn: f.get("laboratoryOn") || null,
+        certificateReference: f.get("certificateReference") || null,
+        processingNotes: f.get("processingNotes") || null,
       });
       await refresh();
       setIngredientModal(false);
@@ -817,6 +822,7 @@ export default function FeedStudio({
           canEdit={canEdit}
           ingredients={data.ingredients}
           canReview={role === "nutritionist"}
+          onImported={refresh}
         />
       )}
       {tab === "Ingredients" && (
@@ -1203,7 +1209,50 @@ export default function FeedStudio({
                     />
                   </label>
                 ))}
+                <label>
+                  Reference category
+                  <input
+                    name="category"
+                    maxLength={100}
+                    defaultValue={editing?.category ?? ""}
+                    placeholder="e.g. grain, protein, mineral"
+                  />
+                </label>
+                <label>
+                  Supplier / manufacturer
+                  <input
+                    name="supplier"
+                    maxLength={200}
+                    defaultValue={editing?.supplier ?? ""}
+                  />
+                </label>
+                <label>
+                  Laboratory analysis date
+                  <input
+                    name="laboratoryOn"
+                    type="date"
+                    max={new Date().toISOString().slice(0, 10)}
+                    defaultValue={editing?.laboratory_on?.slice(0, 10) ?? ""}
+                  />
+                </label>
+                <label>
+                  Laboratory certificate / document reference
+                  <input
+                    name="certificateReference"
+                    maxLength={500}
+                    defaultValue={editing?.certificate_reference ?? ""}
+                  />
+                </label>
               </div>
+              <label className="field">
+                Quality and processing notes
+                <textarea
+                  name="processingNotes"
+                  maxLength={2000}
+                  defaultValue={editing?.processing_notes ?? ""}
+                  placeholder="Record the supplied process and quality evidence; these notes do not enforce solver constraints."
+                />
+              </label>
               <label className="field">
                 Source and verification reference
                 <textarea

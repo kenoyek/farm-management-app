@@ -22,6 +22,7 @@ import { optimize } from "./optimizer";
 import reference from "../../data/ingredients.json";
 import workbooks from "../../data/workbook-audit.json";
 import { nutrientDefinitions, nutrientRegistryVersion } from "./nutrients";
+import { sourceRecipeApi } from "./source-recipe-api";
 const nullable = z.number().finite().nonnegative().nullable();
 const nutrients = z
   .object({
@@ -70,6 +71,8 @@ export async function feedApi(
   user: { id: string },
   path: string,
 ) {
+  const sourceRecipeResponse = await sourceRecipeApi(request, user, path);
+  if (sourceRecipeResponse) return sourceRecipeResponse;
   const runResponse = await optimizationRunApi(request, user, path);
   if (runResponse) return runResponse;
   const reportResponse = await recipeReportApi(request, user, path);
@@ -266,8 +269,46 @@ export async function feedApi(
         parentId: id.nullable().optional(),
         inclusionMin: z.number().min(0).max(100).default(0),
         inclusionMax: z.number().min(0).max(100).default(100),
+        category: z
+          .string()
+          .trim()
+          .min(1)
+          .max(100)
+          .nullable()
+          .optional()
+          .default(null),
+        supplier: z
+          .string()
+          .trim()
+          .min(1)
+          .max(200)
+          .nullable()
+          .optional()
+          .default(null),
+        laboratoryOn: z.iso.date().nullable().optional().default(null),
+        certificateReference: z
+          .string()
+          .trim()
+          .min(1)
+          .max(500)
+          .nullable()
+          .optional()
+          .default(null),
+        processingNotes: z
+          .string()
+          .trim()
+          .min(1)
+          .max(2000)
+          .nullable()
+          .optional()
+          .default(null),
       })
       .parse(await jsonBody(request));
+    if (
+      input.laboratoryOn &&
+      input.laboratoryOn > new Date().toISOString().slice(0, 10)
+    )
+      fail(400, "Laboratory date cannot be in the future.");
     if (input.basis === "dry-matter" && input.nutrients.moisture !== null)
       fail(
         400,
@@ -305,7 +346,7 @@ export async function feedApi(
           revision = previous.revision + 1;
         }
         const r = await c.query(
-          "INSERT INTO ingredients(organization_id,name,source,nutrients,price,basis,energy_system,review_status,verified_at,reviewer_id,species,stages,phosphorus_basis,quoted_on,inclusion_min,inclusion_max,parent_id,revision) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id",
+          "INSERT INTO ingredients(organization_id,name,source,nutrients,price,basis,energy_system,review_status,verified_at,reviewer_id,species,stages,phosphorus_basis,quoted_on,inclusion_min,inclusion_max,parent_id,revision,category,supplier,laboratory_on,certificate_reference,processing_notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id",
           [
             input.organizationId,
             input.name,
@@ -325,6 +366,11 @@ export async function feedApi(
             input.inclusionMax,
             input.parentId ?? null,
             revision,
+            input.category,
+            input.supplier,
+            input.laboratoryOn,
+            input.certificateReference,
+            input.processingNotes,
           ],
         );
         await audit(

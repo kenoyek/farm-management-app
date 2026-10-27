@@ -105,3 +105,12 @@ Decisions apply to that row/context only. They preserve original warnings and do
 Ingredients and Specifications now support **crude fat, crude fibre, moisture and ash**, alongside the original seven measurements. Leave unavailable values blank. Moisture is measured as-fed only and is never calculated from dry matter. The additional measurements are assessed only when the selected reviewed specification sets limits; unknown assessed values block approval and optimization.
 
 Custom workbook mapping supports explicit columns and the existing percent/g/kg/fraction units. No new data is inferred for the supplied workbooks. Saved recipe reports retain their recorded values; earlier seven-field reports keep their original rows and digest. Additional amino acids, fibre methods and catfish digestibility remain future work.
+
+
+## Reference provenance and source recipe drafts
+
+Use **Ingredients → Revise reference** to record category, supplier/manufacturer, laboratory analysis date, certificate/document reference and quality/processing notes. Blank evidence stays unknown; saving appends a version and preserves older recipe evidence. Notes do not automatically create optimizer constraints.
+
+In **Source catalog → Broiler recipe mappings**, review mappings for each populated source row, then use **Preview recipe import**. Each original recipe has four supplied percentages and 30 unspecified inclusions. Check the preview and explicitly acknowledge omitting those blanks before **Import reviewed source as draft**. The import preserves the exact percentages, warnings and mapping/reference evidence; repeated confirmation creates no duplicate. Changed reviews require a new preview.
+
+Open **Recipe library** to inspect or clone the resulting draft. CSV/Excel include provenance, and imported versions have a fifth Source recipe audit worksheet with all original rows. Importing does not approve nutrition or manufacture feed; select and validate a reviewed specification before saving a new reviewed version.
