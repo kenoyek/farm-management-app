@@ -22,11 +22,9 @@ test("reviews exact source mappings, preserves history and handles stale tabs wi
   });
   let org = "";
   const entry = (p: Page) =>
-    p
-      .locator(".catalog-entry")
-      .filter({
-        has: p.locator("summary").filter({ hasText: "Broiler Starter" }),
-      });
+    p.locator(".catalog-entry").filter({
+      has: p.locator("summary").filter({ hasText: "Broiler Starter" }),
+    });
   async function open(p: Page) {
     await p.goto("/");
     await p.getByRole("button", { name: "Feed studio", exact: true }).click();
