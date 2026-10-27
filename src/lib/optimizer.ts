@@ -1,8 +1,10 @@
+import Decimal from "decimal.js";
+import { z } from "zod";
 import {
-  applyProfileBounds,
-  profileRuleIssues,
-  type IngredientRule,
-} from "./profile-rules";
+  diagnoseConstraints,
+  type OptimizationResult,
+} from "./optimization-diagnostics";
+import { profileRuleIssues, type IngredientRule } from "./profile-rules";
 import { spawn } from "node:child_process";
 import {
   nutrientKeys,
@@ -18,10 +20,9 @@ export async function optimize(
   limits: Limits,
   batchKg: number,
   rules: IngredientRule[] = [],
-) {
+): Promise<OptimizationResult> {
   if (!Number.isFinite(batchKg) || batchKg <= 0)
     throw Error("Batch weight must be greater than zero.");
-  lines = applyProfileBounds(lines, rules);
   const selected = lines.map((l) => {
     const ingredient = ingredients.find((i) => i.id === l.ingredientId);
     if (!ingredient) throw Error("Ingredient not found.");
@@ -29,6 +30,7 @@ export async function optimize(
   });
   if (
     !selected.length ||
+    selected.length > 100 ||
     new Set(lines.map((l) => l.ingredientId)).size !== lines.length
   )
     throw Error("Choose unique ingredients.");
@@ -38,13 +40,18 @@ export async function optimize(
       !i.basis ||
       !i.energy_system ||
       i.price === null ||
+      !Number.isFinite(Number(i.price)) ||
       Number(i.price) <= 0
     )
       throw Error(
         `${i.name}: reviewed nutrient basis, energy system and a positive price are required.`,
       );
     for (const n of nutrientKeys.filter((n) => limits[n]))
-      if (i.nutrients[n] === null)
+      if (
+        typeof i.nutrients[n] !== "number" ||
+        !Number.isFinite(i.nutrients[n]) ||
+        i.nutrients[n]! < 0
+      )
         throw Error(`${i.name}: required ${n} data is missing.`);
   }
   if (
@@ -54,26 +61,26 @@ export async function optimize(
     throw Error("Incompatible nutrient bases.");
   if (!Object.keys(limits).length)
     throw Error("A nutritional specification is required.");
-  lines = lines.map((line, index) => ({
+  const evidence = diagnoseConstraints(
+    ingredients,
+    lines,
+    limits,
+    batchKg,
+    rules,
+  );
+  lines = lines.map((line, i) => ({
     ...line,
-    min: Math.max(line.min ?? 0, Number(selected[index].inclusion_min ?? 0)),
-    max: Math.min(
-      line.max ?? 100,
-      Number(selected[index].inclusion_max ?? 100),
-      line.availableKg === undefined ? 100 : (line.availableKg / batchKg) * 100,
-    ),
+    min: evidence.effectiveBounds[i].min,
+    max: evidence.effectiveBounds[i].max,
   }));
-  if (
-    lines.some((l) => (l.min ?? 0) > (l.max ?? 100)) ||
-    lines.reduce((s, l) => s + (l.min ?? 0), 0) > 100 + 1e-7 ||
-    lines.reduce((s, l) => s + (l.max ?? 100), 0) < 100 - 1e-7
-  )
+  if (evidence.diagnostics.length)
     return {
       status: "infeasible",
       fractions: null,
+      objective: null,
       solver: "constraint-precheck",
-      message:
-        "Ingredient/profile minimums, maximums or available stock conflict with the 100% batch requirement.",
+      message: evidence.diagnostics.map((d) => d.message).join(" "),
+      ...evidence,
     };
   const payload = {
     cost: selected.map((i) => Number(i.price)),
@@ -85,43 +92,46 @@ export async function optimize(
         ...limits[n],
       })),
   };
-  const raw = await new Promise<string>((resolve, reject) => {
-    const p = spawn(
-      /* turbopackIgnore: true */ process.env.FARM_PYTHON ?? "python",
-      ["scripts/optimize.py"],
-      { cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"] },
-    );
-    let output = "";
-    let errors = "";
-    const timer = setTimeout(() => {
-      p.kill();
-      reject(Error("Optimization timed out."));
-    }, 20000);
-    p.stdout.on("data", (d) => {
-      output += d.toString();
-    });
-    p.stderr.on("data", (d) => {
-      errors += d.toString();
-    });
-    p.on("error", (e) => {
-      clearTimeout(timer);
-      reject(e);
-    });
-    p.on("close", (code) => {
-      clearTimeout(timer);
-      if (code !== 0)
-        reject(Error(`Optimization service failed: ${errors.slice(0, 100)}`));
-      else resolve(output);
-    });
-    p.stdin.end(JSON.stringify(payload));
-  });
-  const solution = JSON.parse(raw) as {
-    status: string;
-    fractions?: number[];
-    solver: string;
-    message: string;
-  };
-  if (solution.status !== "optimal" || !solution.fractions) return solution;
+  const raw = await solvePayload(payload);
+  const solution = z
+    .object({
+      status: z.enum([
+        "optimal",
+        "infeasible",
+        "limit",
+        "unbounded",
+        "solver-error",
+      ]),
+      fractions: z.array(z.number().finite()).nullable(),
+      objective: z.number().finite().nullable(),
+      solver: z.string().min(1),
+      message: z.string(),
+    })
+    .strict()
+    .parse(JSON.parse(raw));
+  if (solution.status !== "optimal") {
+    if (solution.fractions !== null || solution.objective !== null)
+      throw Error("Unexpected nonoptimal solver allocation.");
+    if (solution.status === "infeasible")
+      evidence.diagnostics.push({
+        kind: "combined-constraints",
+        message:
+          "No solution satisfies all constraints together. Individual reachable ranges are not a joint feasibility proof. All constraints remain unchanged.",
+      });
+    return {
+      ...solution,
+      status: solution.status,
+      fractions: null,
+      objective: null,
+      ...evidence,
+    };
+  }
+  if (
+    !solution.fractions ||
+    solution.fractions.length !== lines.length ||
+    solution.objective === null
+  )
+    throw Error("Invalid optimal solver response.");
   const optimized = lines.map((l, index) => ({
     ...l,
     percent: solution.fractions![index] * 100,
@@ -131,7 +141,23 @@ export async function optimize(
   calculation.issues.push(...ruleIssues);
   calculation.releaseEligible = calculation.issues.length === 0;
   const checks = compliance(calculation.nutrients, limits);
+  const totalPercentError = Math.abs(calculation.totalPercent - 100);
+  const maximumBoundViolationPercent = Math.max(
+    0,
+    ...optimized.flatMap((l) => [
+      (l.min ?? 0) - l.percent,
+      l.percent - (l.max ?? 100),
+    ]),
+  );
+  const objective = optimized.reduce(
+    (sum, line, i) =>
+      sum.plus(new Decimal(line.percent).div(100).mul(selected[i].price!)),
+    new Decimal(0),
+  );
+  const objectiveError = objective.minus(solution.objective).abs().toNumber();
+  const objectiveTolerance = 1e-7 * Math.max(1, objective.abs().toNumber());
   if (
+    objectiveError > objectiveTolerance ||
     ruleIssues.length > 0 ||
     Math.abs(calculation.totalPercent - 100) > 1e-6 ||
     checks.some((c) => c.status !== "pass") ||
@@ -165,9 +191,72 @@ export async function optimize(
   ];
   return {
     ...solution,
+    status: "optimal",
+    fractions: solution.fractions,
+    objective: solution.objective,
+    ...evidence,
+    validation: {
+      totalPercentError,
+      maximumBoundViolationPercent,
+      objectiveError,
+      objectiveTolerance,
+      nutrientTolerance: 1e-7,
+      boundTolerancePercent: 1e-6,
+    },
     lines: optimized,
     calculation,
     compliance: checks,
     bindingConstraints,
   };
+}
+
+let solving = 0;
+async function solvePayload(payload: unknown): Promise<string> {
+  if (solving >= 2) throw Error("Optimization is busy. Try again shortly.");
+  const input = JSON.stringify(payload);
+  if (Buffer.byteLength(input) > 256 * 1024)
+    throw Error("Optimization request is too large.");
+  solving++;
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      const child = spawn(
+        /* turbopackIgnore: true */ process.env.FARM_PYTHON ?? "python",
+        ["scripts/optimize.py"],
+        { cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"] },
+      );
+      let stopped = false,
+        output = "";
+      const stop = (message: string) => {
+        if (stopped) return;
+        stopped = true;
+        clearTimeout(timer);
+        child.kill();
+        reject(Error(message));
+      };
+      const timer = setTimeout(() => stop("Optimization timed out."), 20000);
+      child.on("error", () => stop("Optimization service is unavailable."));
+      child.stdin.on("error", () => {});
+      child.stderr.on("data", () => {});
+      child.stdout.on("data", (chunk) => {
+        output += chunk.toString();
+        if (Buffer.byteLength(output) > 256 * 1024)
+          stop("Optimization response is too large.");
+      });
+      child.on("close", (code) => {
+        if (stopped) return;
+        stopped = true;
+        clearTimeout(timer);
+        if (code !== 0)
+          reject(
+            Error(
+              "Optimization service failed or exceeded its resource limits.",
+            ),
+          );
+        else resolve(output);
+      });
+      child.stdin.end(input);
+    });
+  } finally {
+    solving--;
+  }
 }

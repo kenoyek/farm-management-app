@@ -1753,3 +1753,25 @@ textarea {
   min-width: 175px;
   vertical-align: top;
 }
+
+.optimization-evidence,
+.optimizer-detail {
+  margin-top: 20px;
+}
+.optimization-json {
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.optimizer-checks {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  font-size: 12px;
+}
+.optimizer-checks dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

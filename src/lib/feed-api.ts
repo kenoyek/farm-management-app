@@ -1,3 +1,4 @@
+import { optimizationRunApi } from "./optimization-run-api";
 import { recipeReportApi } from "./recipe-report-api";
 import { profileApi } from "./profile-api";
 import { profileRuleIssues } from "./profile-rules";
@@ -9,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { tenant, audit } from "./db";
 import { id } from "./validation";
-import { jsonBody, fail } from "./http";
+import { jsonBody, fail, rateLimit } from "./http";
 import {
   nutrientKeys,
   calculateFormula,
@@ -62,6 +63,8 @@ export async function feedApi(
   user: { id: string },
   path: string,
 ) {
+  const runResponse = await optimizationRunApi(request, user, path);
+  if (runResponse) return runResponse;
   const reportResponse = await recipeReportApi(request, user, path);
   if (reportResponse) return reportResponse;
   const profileResponse = await profileApi(request, user, path);
@@ -388,11 +391,22 @@ export async function feedApi(
             );
         }
         if (path === "formulas/optimize") {
+          if (
+            !["owner", "admin", "nutritionist"].includes(
+              (
+                await c.query("SELECT member_role($1) AS role", [
+                  input.organizationId,
+                ])
+              ).rows[0].role,
+            )
+          )
+            fail(403, "Only feed editors can run optimization.");
           if (!profile)
             fail(
               400,
               "Choose a nutritionist-reviewed requirement profile before optimizing.",
             );
+          rateLimit(`optimization:${user.id}`);
           const result = await optimize(
             ingredients,
             input.lines,
@@ -410,7 +424,7 @@ export async function feedApi(
                 ingredientSnapshot: ingredients.filter((i) =>
                   input.lines.some((l) => l.ingredientId === i.id),
                 ),
-                modelVersion: 2,
+                modelVersion: 3,
               }),
               JSON.stringify(result),
             ],
@@ -421,7 +435,7 @@ export async function feedApi(
             "formula.optimized",
             r.rows[0].id,
           );
-          return result;
+          return { ...result, runId: r.rows[0].id };
         }
         const calculation = calculateFormula(
           input.lines,

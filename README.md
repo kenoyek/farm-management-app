@@ -80,3 +80,12 @@ Feed studio → Recipe library lists the latest 100 saved versions. Select two t
 The CSV/XLSX buttons on each saved recipe download its original batch, exact reference IDs, status, saved nutrients/costs, source evidence, bounds and specification. Excel has four worksheets and stores monetary values as decimal text to preserve precision. Unknowns are blank, zeros are retained and formula-like names remain text. A snapshot-data SHA-256 identifies the report evidence. Later quotations or profile revisions do not update these exports. New versions record the saving actor; older versions may lack that metadata. Reports are available only to current organization members, including auditors.
 
 Draft/pending/rejected reports are marked NOT APPROVED. Approved reports describe a historical review, not a stock reservation or manufacturing release. Use the pinned Python environment for Excel exports; CSV requires only the Node application. PDF export, processing rules and integrated manufacturing remain future work.
+
+
+## Inspect optimizer diagnostics and past runs
+
+After **Find least-cost formula**, review **Optimization evidence** for effective bounds, source limits, individual attainable nutrient ranges and any conflict explanations. Ranges use the unchanged ingredient bounds and 100% total; they do not prove that all nutrient targets are feasible together. Optimal runs also show binding constraints and independent primal/objective checks. No constraint is relaxed automatically.
+
+In Feed studio → Optimizer history, search/filter the latest 100 runs, inspect original requests/reference snapshots and download run JSON. Costs and quotations remain historical. Legacy records explicitly identify absent evidence. Current organization members can read history; auditors cannot execute new runs.
+
+Use **Load scenario as draft** to deliberately replace your working formulation with a historical scenario. Download your current local draft first if you need both. Original scenario bounds/availability are preserved; valid saved optimal percentages may be restored, but status resets to Draft and fresh calculation/review is required. Viewing or restoring a run does not save an approved recipe or reserve stock.

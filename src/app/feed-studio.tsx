@@ -1,6 +1,10 @@
 "use client";
 import { useFeedDraft } from "@/lib/use-feed-draft";
 import type { DraftContent } from "@/lib/draft-schema";
+import OptimizationHistory from "./optimization-history";
+import OptimizationEvidence from "./optimization-evidence";
+import { outcomeView, type OptimizationView } from "@/lib/optimization-history";
+import type { OptimizationResult } from "@/lib/optimization-diagnostics";
 import RecipeLibrary from "./recipe-library";
 import WorkbookUpload from "./workbook-upload";
 import Specifications, { ProfileRules } from "./specifications";
@@ -89,6 +93,12 @@ export default function FeedStudio({
     [busy, setBusy] = useState(false),
     [preview, setPreview] = useState<Preview | null>(null),
     [ingredientModal, setIngredientModal] = useState(false);
+  const [lastOptimization, setLastOptimization] = useState<{
+    view: OptimizationView;
+    signature: string;
+    runId: string;
+  } | null>(null);
+  const [historyRunId, setHistoryRunId] = useState("");
   const [editing, setEditing] = useState<Ingredient | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [lines, setLines] = useState<FormulaLine[]>([]),
@@ -162,6 +172,12 @@ export default function FeedStudio({
       setBusy(false);
     }
   }
+  const optimizationSignature = JSON.stringify({
+    name,
+    batchKg,
+    profileId,
+    lines,
+  });
   const payload = {
     organizationId,
     name,
@@ -229,6 +245,7 @@ export default function FeedStudio({
           "Specifications",
           "Source catalog",
           "Recipe library",
+          "Optimizer history",
           "Workbook import",
         ].map((t) => (
           <button
@@ -333,7 +350,7 @@ export default function FeedStudio({
           )}
           <fieldset
             className="draft-editor"
-            disabled={canEdit && !draft.state.ready}
+            disabled={busy || (canEdit && !draft.state.ready)}
           >
             <div className="panel module-panel">
               <div className="panel-heading">
@@ -639,13 +656,24 @@ export default function FeedStudio({
                   disabled={busy || !canEdit || !profileId || !lines.length}
                   onClick={() =>
                     void run(async () => {
-                      const r = await api<{
-                        status: string;
-                        message: string;
-                        lines?: FormulaLine[];
-                        calculation?: Result;
-                        compliance?: Result["compliance"];
-                      }>("formulas/optimize", payload);
+                      const r = await api<OptimizationResult>(
+                        "formulas/optimize",
+                        payload,
+                      );
+                      const view = outcomeView(r);
+                      const optimizedLines =
+                        r.status === "optimal" && r.lines ? r.lines : lines;
+                      if (view && r.runId)
+                        setLastOptimization({
+                          view,
+                          runId: r.runId,
+                          signature: JSON.stringify({
+                            name,
+                            batchKg,
+                            profileId,
+                            lines: optimizedLines,
+                          }),
+                        });
                       if (r.status === "optimal" && r.lines && r.calculation) {
                         setLines(r.lines);
                         setResult({
@@ -669,6 +697,16 @@ export default function FeedStudio({
                 solver.
               </p>
             </div>
+            {lastOptimization?.signature === optimizationSignature && (
+              <OptimizationEvidence
+                view={lastOptimization.view}
+                runId={lastOptimization.runId}
+                openHistory={() => {
+                  setHistoryRunId(lastOptimization.runId);
+                  setTab("Optimizer history");
+                }}
+              />
+            )}
             {result && (
               <>
                 <div className="stats-grid feed-stats">
@@ -887,6 +925,23 @@ export default function FeedStudio({
             <div className="empty">No ingredient references yet.</div>
           )}
         </section>
+      )}
+      {tab === "Optimizer history" && (
+        <OptimizationHistory
+          organizationId={organizationId}
+          initialRunId={historyRunId}
+          canRestore={
+            canEdit && draft.state.ready && !draft.state.conflict && !busy
+          }
+          restore={(content) => {
+            restoreDraft(content);
+            setLastOptimization(null);
+            setNotice(
+              "Historical scenario loaded as a draft. Calculate again before saving a reviewed version.",
+            );
+            setTab("Formulator");
+          }}
+        />
       )}
       {tab === "Recipe library" && (
         <RecipeLibrary
