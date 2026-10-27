@@ -819,7 +819,12 @@ export default function FeedStudio({
         />
       )}
       {tab === "Source catalog" && (
-        <SourceCatalog organizationId={organizationId} canEdit={canEdit} />
+        <SourceCatalog
+          organizationId={organizationId}
+          canEdit={canEdit}
+          ingredients={data.ingredients}
+          canReview={role === "nutritionist"}
+        />
       )}
       {tab === "Ingredients" && (
         <section className="panel">

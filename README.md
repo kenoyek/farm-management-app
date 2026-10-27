@@ -91,3 +91,10 @@ After **Find least-cost formula**, review **Optimization evidence** for effectiv
 In Feed studio → Optimizer history, search/filter the latest 100 runs, inspect original requests/reference snapshots and download run JSON. Costs and quotations remain historical. Legacy records explicitly identify absent evidence. Current organization members can read history; auditors cannot execute new runs.
 
 Use **Load scenario as draft** to deliberately replace your working formulation with a historical scenario. Download your current local draft first if you need both. Original scenario bounds/availability are preserved; valid saved optimal percentages may be restored, but status resets to Draft and fresh calculation/review is required. Viewing or restoring a run does not save an approved recipe or reserve stock.
+
+
+## Source alias review
+
+In Feed studio → Source catalog, select **Ingredient inclusion limits** or **Broiler recipe mappings** and open a source row. Assigned nutritionists use **Review mapping** to select an exact ingredient reference, reject a mapping, or leave it unresolved, with evidence and explicit confirmation. Other members can view history and download the latest 100 decisions as JSON. A stale tab must reload the latest review before saving.
+
+Decisions apply to that row/context only. They preserve original warnings and do not approve nutrition, apply source inclusion limits or change saved recipes. A new ingredient/quotation revision requires explicit new review. Expanded nutrients and qualified catalog reconciliation remain outstanding.

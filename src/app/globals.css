@@ -1651,6 +1651,30 @@ textarea {
 .catalog-entry[open] summary {
   margin-bottom: 18px;
 }
+.alias-review {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 18px;
+  overflow-wrap: anywhere;
+}
+.alias-review form {
+  margin-top: 18px;
+}
+.alias-review .editor-settings label {
+  min-width: 0;
+}
+.alias-review textarea {
+  width: 100%;
+  min-height: 90px;
+}
+.alias-history article {
+  border-top: 1px solid var(--line);
+  padding: 14px 0;
+}
+.alias-history small {
+  color: var(--muted);
+  font-size: 10px;
+}
 .draft-status {
   display: flex;
   align-items: center;

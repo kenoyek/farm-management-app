@@ -2,7 +2,10 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import type { CatalogRow, SourceField } from "@/lib/workbook-catalog";
-type StoredRow = CatalogRow & { id: string };
+import type { Ingredient } from "@/lib/feed";
+import type { AliasReview } from "@/lib/catalog-review";
+import CatalogAliasReview from "./catalog-alias-review";
+type StoredRow = CatalogRow & { id: string; alias_review?: AliasReview | null };
 function normalized(field: SourceField) {
   const p = field.parsed;
   switch (p.kind) {
@@ -19,9 +22,13 @@ function normalized(field: SourceField) {
 export default function SourceCatalog({
   organizationId,
   canEdit,
+  ingredients,
+  canReview,
 }: {
   organizationId: string;
   canEdit: boolean;
+  ingredients: Ingredient[];
+  canReview: boolean;
 }) {
   const [previewing, setPreviewing] = useState(false);
   const [rows, setRows] = useState<StoredRow[]>([]),
@@ -30,6 +37,7 @@ export default function SourceCatalog({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
+  const [reviewFilter, setReviewFilter] = useState("all");
   useEffect(() => {
     let active = true;
     void api<StoredRow[]>(`imports/catalog?organizationId=${organizationId}`)
@@ -46,7 +54,12 @@ export default function SourceCatalog({
   const visible = rows.filter(
     (r) =>
       r.category === category &&
-      `${r.label} ${r.context}`.toLowerCase().includes(search.toLowerCase()),
+      `${r.label} ${r.context}`.toLowerCase().includes(search.toLowerCase()) &&
+      (category === "requirement" ||
+        reviewFilter === "all" ||
+        (reviewFilter === "not-reviewed"
+          ? !r.alias_review
+          : r.alias_review?.decision === reviewFilter)),
   );
   async function stage() {
     setBusy(true);
@@ -137,6 +150,22 @@ export default function SourceCatalog({
         <div>
           <span className="tag">{visible.length} ROWS · UNVERIFIED</span>
         </div>
+        {category !== "requirement" && (
+          <label>
+            Alias review status
+            <select
+              aria-label="Alias review status"
+              value={reviewFilter}
+              onChange={(e) => setReviewFilter(e.target.value)}
+            >
+              <option value="all">All source rows</option>
+              <option value="not-reviewed">Not reviewed</option>
+              <option value="mapped">Mapped</option>
+              <option value="rejected">Rejected</option>
+              <option value="unresolved">Unresolved</option>
+            </select>
+          </label>
+        )}
       </div>
       {!rows.length ? (
         <div className="empty">
@@ -154,6 +183,13 @@ export default function SourceCatalog({
                 <strong>{row.label}</strong>
                 <span>{row.context}</span>
                 <small>{row.issues.length} review notes</small>
+                {row.category !== "requirement" && (
+                  <span>
+                    {row.alias_review
+                      ? `${row.alias_review.decision} · v${row.alias_review.revision}`
+                      : "Not reviewed"}
+                  </span>
+                )}
               </summary>
               <p className="helper">
                 Feed Formula Calculator.xlsx · {row.sheet} · row{" "}
@@ -192,6 +228,21 @@ export default function SourceCatalog({
                   ))}
                 </ul>
               </div>
+              {!previewing && row.category !== "requirement" && (
+                <CatalogAliasReview
+                  organizationId={organizationId}
+                  row={row}
+                  ingredients={ingredients}
+                  canReview={canReview}
+                  onSaved={(review) =>
+                    setRows((current) =>
+                      current.map((r) =>
+                        r.id === row.id ? { ...r, alias_review: review } : r,
+                      ),
+                    )
+                  }
+                />
+              )}
             </details>
           ))}
         </div>
