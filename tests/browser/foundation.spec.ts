@@ -104,6 +104,66 @@ test("register, create organization and farm, reload persistence, mobile navigat
       page.getByText("Immutable recipe version saved."),
     ).toBeVisible();
     await page
+      .getByRole("button", { name: "Source catalog", exact: true })
+      .click();
+    await expect(
+      page.getByText("32 ROWS · UNVERIFIED", { exact: true }),
+    ).toBeVisible();
+    await page.getByLabel("Reference category").selectOption("restriction");
+    await expect(
+      page.getByText("120 ROWS · UNVERIFIED", { exact: true }),
+    ).toBeVisible();
+    await page.getByLabel("Search source labels").fill("Salt");
+    await page.locator(".catalog-entry summary").first().click();
+    await expect(
+      page
+        .locator(".catalog-entry")
+        .first()
+        .getByText("0–0.5 % (source range)", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Stage confirmed workbook references" })
+      .click();
+    await expect(
+      page.getByText("The source catalog is already up to date."),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Ingredients", exact: true })
+      .click();
+    await page
+      .getByRole("row")
+      .filter({ has: page.getByText("Maize", { exact: true }) })
+      .getByRole("button", { name: "Revise reference" })
+      .click();
+    await expect(
+      page.getByRole("dialog").getByLabel("Price per kg (₦)", { exact: true }),
+    ).toHaveValue("230.0000");
+    await page
+      .getByRole("dialog")
+      .getByLabel("Price per kg (₦)", { exact: true })
+      .fill("500");
+    await page.getByRole("button", { name: "Save reference revision" }).click();
+    await expect(
+      page.getByText(
+        "Ingredient revision saved. Historical references and recipe snapshots are unchanged.",
+      ),
+    ).toBeVisible();
+    await page.getByLabel("Show historical ingredient revisions").check();
+    await expect(
+      page
+        .getByRole("row")
+        .filter({ has: page.getByText("Maize", { exact: true }) }),
+    ).toHaveCount(2);
+    await page
+      .getByRole("button", { name: "Recipe library", exact: true })
+      .click();
+    await expect(
+      page
+        .getByRole("row")
+        .filter({ hasText: "My feed recipe" })
+        .getByText("230.0000", { exact: true }),
+    ).toBeVisible();
+    await page
       .getByRole("button", { name: "Projections", exact: true })
       .click();
     await page.getByRole("button", { name: "Save scenario" }).click();

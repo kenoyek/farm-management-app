@@ -1,4 +1,5 @@
 "use client";
+import SourceCatalog from "./source-catalog";
 import { useDialog } from "@/lib/use-dialog";
 import { useEffect, useState, type FormEvent } from "react";
 import {
@@ -85,6 +86,8 @@ export default function FeedStudio({
     [preview, setPreview] = useState<Preview | null>(null),
     [ingredientModal, setIngredientModal] = useState(false),
     [profileModal, setProfileModal] = useState(false);
+  const [editing, setEditing] = useState<Ingredient | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [lines, setLines] = useState<FormulaLine[]>([]),
     [name, setName] = useState("My feed recipe"),
     [batchKg, setBatchKg] = useState(1000),
@@ -100,6 +103,12 @@ export default function FeedStudio({
   });
   const canEdit = ["owner", "admin", "nutritionist"].includes(role);
   const nutritionist = role === "nutritionist";
+  const currentIngredients = data.ingredients.filter(
+    (i) => !data.ingredients.some((next) => next.parent_id === i.id),
+  );
+  const visibleIngredients = showHistory
+    ? data.ingredients
+    : currentIngredients;
   useEffect(() => {
     let active = true;
     void api<FeedData>(`feed?organizationId=${organizationId}`)
@@ -157,6 +166,7 @@ export default function FeedStudio({
       );
       await api("ingredients", {
         organizationId,
+        parentId: editing?.id ?? null,
         name: f.get("name"),
         source: f.get("source"),
         price: f.get("price") === "" ? null : Number(f.get("price")),
@@ -176,23 +186,32 @@ export default function FeedStudio({
       });
       await refresh();
       setIngredientModal(false);
-      setNotice("Ingredient reference saved as a new record.");
+      setNotice(
+        editing
+          ? "Ingredient revision saved. Historical references and recipe snapshots are unchanged."
+          : "Ingredient reference saved as a new record.",
+      );
+      setEditing(null);
     });
   }
   return (
     <section className="module">
       <div className="module-tabs">
-        {["Formulator", "Ingredients", "Recipe library", "Workbook import"].map(
-          (t) => (
-            <button
-              className={tab === t ? "selected" : ""}
-              key={t}
-              onClick={() => setTab(t)}
-            >
-              {t}
-            </button>
-          ),
-        )}
+        {[
+          "Formulator",
+          "Ingredients",
+          "Source catalog",
+          "Recipe library",
+          "Workbook import",
+        ].map((t) => (
+          <button
+            className={tab === t ? "selected" : ""}
+            key={t}
+            onClick={() => setTab(t)}
+          >
+            {t}
+          </button>
+        ))}
       </div>
       {error && (
         <p className="error" role="alert">
@@ -297,11 +316,26 @@ export default function FeedStudio({
                             }
                           >
                             <option value="">Select ingredient</option>
-                            {data.ingredients.map((d) => (
-                              <option key={d.id} value={d.id}>
-                                {d.name}
-                              </option>
-                            ))}
+                            {data.ingredients
+                              .filter(
+                                (d) =>
+                                  currentIngredients.some(
+                                    (i) => i.id === d.id,
+                                  ) || d.id === l.ingredientId,
+                              )
+                              .map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.name}
+                                  {(d.revision ?? 1) > 1
+                                    ? ` · v${d.revision}`
+                                    : ""}
+                                  {data.ingredients.some(
+                                    (next) => next.parent_id === d.id,
+                                  )
+                                    ? " · historical"
+                                    : ""}
+                                </option>
+                              ))}
                           </select>
                         </td>
                         {(["percent", "min", "max"] as const).map((k) => (
@@ -393,7 +427,7 @@ export default function FeedStudio({
                     ...lines,
                     {
                       ingredientId:
-                        data.ingredients.find(
+                        currentIngredients.find(
                           (i) => !lines.some((l) => l.ingredientId === i.id),
                         )?.id ?? "",
                       percent: 0,
@@ -602,6 +636,9 @@ export default function FeedStudio({
           )}
         </>
       )}
+      {tab === "Source catalog" && (
+        <SourceCatalog organizationId={organizationId} canEdit={canEdit} />
+      )}
       {tab === "Ingredients" && (
         <section className="panel">
           <div className="panel-heading">
@@ -621,7 +658,10 @@ export default function FeedStudio({
               <button
                 className="primary"
                 disabled={!canEdit}
-                onClick={() => setIngredientModal(true)}
+                onClick={() => {
+                  setEditing(null);
+                  setIngredientModal(true);
+                }}
               >
                 <Plus size={14} />
                 Add ingredient
@@ -634,6 +674,14 @@ export default function FeedStudio({
             system. Historical source prices are not current quotations. Create
             new references for corrected or updated data.
           </p>
+          <label className="history-toggle">
+            <input
+              type="checkbox"
+              checked={showHistory}
+              onChange={(e) => setShowHistory(e.target.checked)}
+            />
+            Show historical ingredient revisions
+          </label>
           <div className="table-scroll">
             <table>
               <thead>
@@ -644,10 +692,12 @@ export default function FeedStudio({
                   <th>Protein %</th>
                   <th>Reference status</th>
                   <th>Source</th>
+                  <th>Revision</th>
+                  <th>Review</th>
                 </tr>
               </thead>
               <tbody>
-                {data.ingredients.map((i) => (
+                {visibleIngredients.map((i) => (
                   <tr key={i.id}>
                     <td>{i.name}</td>
                     <td>{i.price ?? "Missing"}</td>
@@ -661,6 +711,29 @@ export default function FeedStudio({
                       </span>
                     </td>
                     <td className="source-cell">{i.source}</td>
+                    <td>
+                      v{i.revision ?? 1}
+                      {data.ingredients.some((next) => next.parent_id === i.id)
+                        ? " · historical"
+                        : " · current"}
+                    </td>
+                    <td>
+                      <button
+                        className="text-button"
+                        disabled={
+                          !canEdit ||
+                          data.ingredients.some(
+                            (next) => next.parent_id === i.id,
+                          )
+                        }
+                        onClick={() => {
+                          setEditing(i);
+                          setIngredientModal(true);
+                        }}
+                      >
+                        Revise reference
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -831,7 +904,11 @@ export default function FeedStudio({
             aria-labelledby="ingredient-title"
           >
             <div className="panel-heading">
-              <h2 id="ingredient-title">New ingredient reference</h2>
+              <h2 id="ingredient-title">
+                {editing
+                  ? `Revise ${editing.name} · v${(editing.revision ?? 1) + 1}`
+                  : "New ingredient reference"}
+              </h2>
               <button
                 className="text-button"
                 onClick={() => setIngredientModal(false)}
@@ -839,19 +916,34 @@ export default function FeedStudio({
                 Close
               </button>
             </div>
-            <form onSubmit={(e) => void addIngredient(e)}>
+            <form
+              key={editing?.id ?? "new"}
+              onSubmit={(e) => void addIngredient(e)}
+            >
               <div className="form-grid">
                 <label>
                   Name
-                  <input name="name" required minLength={2} maxLength={100} />
+                  <input
+                    name="name"
+                    defaultValue={editing?.name ?? ""}
+                    required
+                    minLength={2}
+                    maxLength={100}
+                  />
                 </label>
                 <label>
                   Price per kg (₦)
-                  <input type="number" name="price" step="0.0001" min="0" />
+                  <input
+                    type="number"
+                    name="price"
+                    defaultValue={editing?.price ?? ""}
+                    step="0.0001"
+                    min="0"
+                  />
                 </label>
                 <label>
                   Nutrient basis
-                  <select name="basis">
+                  <select name="basis" defaultValue={editing?.basis ?? ""}>
                     <option value="">Unknown</option>
                     <option value="as-fed">As-fed</option>
                     <option value="dry-matter">Dry matter</option>
@@ -859,7 +951,10 @@ export default function FeedStudio({
                 </label>
                 <label>
                   Energy system
-                  <select name="energySystem">
+                  <select
+                    name="energySystem"
+                    defaultValue={editing?.energy_system ?? ""}
+                  >
                     <option value="">Unknown</option>
                     <option value="ME">Metabolizable energy (ME)</option>
                     <option value="DE">Digestible energy (DE)</option>
@@ -867,7 +962,10 @@ export default function FeedStudio({
                 </label>
                 <label>
                   Species
-                  <select name="species">
+                  <select
+                    name="species"
+                    defaultValue={editing?.species ?? "unknown"}
+                  >
                     <option value="unknown">Unverified species</option>
                     <option value="poultry">Poultry</option>
                     <option value="catfish">Catfish</option>
@@ -877,12 +975,16 @@ export default function FeedStudio({
                   Applicable stages (comma separated)
                   <input
                     name="stages"
+                    defaultValue={editing?.stages?.join(", ") ?? ""}
                     placeholder="e.g. broiler-starter, broiler-finisher"
                   />
                 </label>
                 <label>
                   Phosphorus basis
-                  <select name="phosphorusBasis">
+                  <select
+                    name="phosphorusBasis"
+                    defaultValue={editing?.phosphorus_basis ?? "unknown"}
+                  >
                     <option value="unknown">Unknown</option>
                     <option value="total">Total</option>
                     <option value="available">Available</option>
@@ -893,6 +995,7 @@ export default function FeedStudio({
                   Price quotation date
                   <input
                     name="quotedOn"
+                    defaultValue={editing?.quoted_on?.slice(0, 10) ?? ""}
                     type="date"
                     max={new Date().toISOString().slice(0, 10)}
                   />
@@ -906,7 +1009,7 @@ export default function FeedStudio({
                     max="100"
                     step="0.01"
                     required
-                    defaultValue={0}
+                    defaultValue={editing?.inclusion_min ?? 0}
                   />
                 </label>
                 <label>
@@ -918,7 +1021,7 @@ export default function FeedStudio({
                     max="100"
                     step="0.01"
                     required
-                    defaultValue={100}
+                    defaultValue={editing?.inclusion_max ?? 100}
                   />
                 </label>
                 {nutrientKeys.map((k) => (
@@ -926,6 +1029,7 @@ export default function FeedStudio({
                     {labels[k]}
                     <input
                       name={k}
+                      defaultValue={editing?.nutrients[k] ?? ""}
                       type="number"
                       step="0.0001"
                       min="0"
@@ -938,6 +1042,7 @@ export default function FeedStudio({
                 Source and verification reference
                 <textarea
                   name="source"
+                  defaultValue={editing?.source ?? ""}
                   required
                   minLength={3}
                   maxLength={2000}
@@ -962,7 +1067,7 @@ export default function FeedStudio({
                 </p>
               )}
               <button className="primary" disabled={busy}>
-                Save new reference
+                {editing ? "Save reference revision" : "Save new reference"}
               </button>
             </form>
           </section>

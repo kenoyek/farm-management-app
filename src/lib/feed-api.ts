@@ -1,3 +1,5 @@
+import { workbookCatalog } from "./workbook-catalog";
+import { catalogApi, stageCatalog } from "./catalog-api";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { tenant, audit } from "./db";
@@ -74,6 +76,8 @@ export async function feedApi(
   user: { id: string },
   path: string,
 ) {
+  const catalogResponse = await catalogApi(request, user, path);
+  if (catalogResponse) return catalogResponse;
   const method = request.method;
   if (path === "team" && method === "GET") {
     const org = id.parse(request.nextUrl.searchParams.get("organizationId"));
@@ -181,6 +185,7 @@ export async function feedApi(
         })),
       })),
       ingredients: reference,
+      catalog: workbookCatalog(),
       issues: [
         "All source data is unverified. Historical prices require a new quotation.",
         "Defatted soybean methionine is missing; dry matter formulas are omitted in the source recipes.",
@@ -230,6 +235,7 @@ export async function feedApi(
               i.price,
             ],
           );
+        await stageCatalog(c, input.organizationId, job.id);
         await audit(c, input.organizationId, "workbooks.imported", job.id);
         return { id: job.id, count: reference.length };
       }),
@@ -253,6 +259,7 @@ export async function feedApi(
           .enum(["unknown", "total", "available", "digestible"])
           .default("unknown"),
         quotedOn: z.iso.date().nullable().default(null),
+        parentId: id.nullable().optional(),
         inclusionMin: z.number().min(0).max(100).default(0),
         inclusionMax: z.number().min(0).max(100).default(100),
       })
@@ -266,8 +273,30 @@ export async function feedApi(
         ).rows[0].role;
         if (input.reviewStatus === "approved" && role !== "nutritionist")
           fail(403, "A nutritionist must approve scientific reference data.");
+        let revision = 1;
+        if (input.parentId) {
+          const previous = (
+            await c.query(
+              "SELECT revision FROM ingredients WHERE organization_id=$1 AND id=$2",
+              [input.organizationId, input.parentId],
+            )
+          ).rows[0];
+          if (!previous) fail(404, "Ingredient reference not found.");
+          if (
+            (
+              await c.query("SELECT id FROM ingredients WHERE parent_id=$1", [
+                input.parentId,
+              ])
+            ).rowCount
+          )
+            fail(
+              409,
+              "This reference has a newer revision. Refresh the ingredient list before revising.",
+            );
+          revision = previous.revision + 1;
+        }
         const r = await c.query(
-          "INSERT INTO ingredients(organization_id,name,source,nutrients,price,basis,energy_system,review_status,verified_at,reviewer_id,species,stages,phosphorus_basis,quoted_on,inclusion_min,inclusion_max) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id",
+          "INSERT INTO ingredients(organization_id,name,source,nutrients,price,basis,energy_system,review_status,verified_at,reviewer_id,species,stages,phosphorus_basis,quoted_on,inclusion_min,inclusion_max,parent_id,revision) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id",
           [
             input.organizationId,
             input.name,
@@ -285,12 +314,14 @@ export async function feedApi(
             input.quotedOn,
             input.inclusionMin,
             input.inclusionMax,
+            input.parentId ?? null,
+            revision,
           ],
         );
         await audit(
           c,
           input.organizationId,
-          "ingredient.created",
+          input.parentId ? "ingredient.revised" : "ingredient.created",
           r.rows[0].id,
         );
         return r.rows[0];

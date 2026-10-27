@@ -12,6 +12,8 @@ export type Nutrient = (typeof nutrientKeys)[number];
 export type Nutrients = Record<Nutrient, number | null>;
 export type Ingredient = {
   id: string;
+  parent_id?: string | null;
+  revision?: number;
   name: string;
   nutrients: Nutrients;
   price: string | number | null;

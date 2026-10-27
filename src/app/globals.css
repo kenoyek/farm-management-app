@@ -1613,3 +1613,41 @@ textarea {
 .user-card strong {
   white-space: nowrap;
 }
+.history-toggle {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 10px 24px;
+  color: var(--muted);
+}
+.history-toggle input {
+  width: auto;
+  margin: 0;
+}
+.catalog-list {
+  padding: 0 22px 22px;
+}
+.catalog-entry {
+  border-top: 1px solid var(--line);
+  padding: 14px 0;
+}
+.catalog-entry summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.catalog-entry summary > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.catalog-entry summary > small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+}
+.catalog-entry[open] summary {
+  margin-bottom: 18px;
+}

@@ -21,7 +21,7 @@ Enable RLS and least-privilege grants on every tenant table, including new migra
 
 ## Implemented schema and permissions
 
-Eight forward-only migrations currently create identities/sessions, organizations/memberships/farms/audit, imports/ingredients/reviewed requirements/formula versions/optimization runs, forecasts, production units and append-only daily records. They also add scientific context and inclusion limits, guarded team functions, organization settings and the restricted `farm_server` login. `farm_server` has NOINHERIT/NOSUPERUSER/NOBYPASSRLS and identity/session grants only; operational access requires `SET LOCAL ROLE farm_app`. Local migration/test-administration credentials are read only by setup/test helpers. Rollbacks for destructive historical tables are intentionally not automated; take and verify backups before schema changes.
+Nine forward-only migrations currently create identities/sessions, organizations/memberships/farms/audit, imports/ingredients/reviewed requirements/formula versions/optimization runs, forecasts, production units and append-only daily records. They also add scientific context and inclusion limits, guarded team functions, organization settings and the restricted `farm_server` login. `farm_server` has NOINHERIT/NOSUPERUSER/NOBYPASSRLS and identity/session grants only; operational access requires `SET LOCAL ROLE farm_app`. Local migration/test-administration credentials are read only by setup/test helpers. Rollbacks for destructive historical tables are intentionally not automated; take and verify backups before schema changes.
 
 ```mermaid
 erDiagram
@@ -41,3 +41,6 @@ erDiagram
 ```
 
 Formula/forecast/import snapshots intentionally retain original input JSON alongside the relational tenant/identity graph; the expanded normalized nutrient and operational ledger entities above are still planned, not all implemented. Production record writes serialize per unit with a transaction advisory lock, reject mortality above current stock, require chronological unique dates and reject incomplete sampling pairs. Composite tenant-parent keys prevent cross-organization unit assignments. Operations and forecasts are not yet an integrated stock or financial ledger.
+
+
+Migration 009 adds `import_reference_rows` with tenant/import composite ownership, immutable source fields/issues, hash/sheet/row/context uniqueness, and reader/editor RLS. `ingredients.parent_id` uses a composite tenant foreign key; revision sequencing is checked on insert and each parent can have only one successor. Runtime UPDATE access to ingredients is revoked, including for nutritionists. Review and price changes append new records, preserving recipe snapshots and their original IDs. These source candidates are separate from approved requirement profiles and are never applied automatically.

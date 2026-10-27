@@ -1,0 +1,201 @@
+"use client";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/client";
+import type { CatalogRow, SourceField } from "@/lib/workbook-catalog";
+type StoredRow = CatalogRow & { id: string };
+function normalized(field: SourceField) {
+  const p = field.parsed;
+  switch (p.kind) {
+    case "missing":
+      return "Missing";
+    case "unsupported":
+      return "Needs interpretation";
+    case "range":
+      return `${p.min}–${p.max} ${field.unit} (source range)`;
+    case "scalar":
+      return `${p.value} ${field.unit} (source value)`;
+  }
+}
+export default function SourceCatalog({
+  organizationId,
+  canEdit,
+}: {
+  organizationId: string;
+  canEdit: boolean;
+}) {
+  const [previewing, setPreviewing] = useState(false);
+  const [rows, setRows] = useState<StoredRow[]>([]),
+    [category, setCategory] = useState("requirement"),
+    [search, setSearch] = useState(""),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [notice, setNotice] = useState("");
+  useEffect(() => {
+    let active = true;
+    void api<StoredRow[]>(`imports/catalog?organizationId=${organizationId}`)
+      .then((r) => {
+        if (active) setRows(r);
+      })
+      .catch((e) => {
+        if (active) setError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [organizationId]);
+  const visible = rows.filter(
+    (r) =>
+      r.category === category &&
+      `${r.label} ${r.context}`.toLowerCase().includes(search.toLowerCase()),
+  );
+  async function stage() {
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api<{ count: number }>("imports/catalog", {
+        organizationId,
+        confirmed: true,
+      });
+      setPreviewing(false);
+      setRows(await api(`imports/catalog?organizationId=${organizationId}`));
+      setNotice(
+        r.count
+          ? `${r.count} source rows staged for review.`
+          : "The source catalog is already up to date.",
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <h2>Source reference catalog{previewing ? " · preview" : ""}</h2>
+        <button
+          className="secondary"
+          disabled={busy}
+          onClick={() => {
+            void api<{ catalog: CatalogRow[] }>("imports/preview")
+              .then((r) => {
+                setRows(
+                  r.catalog.map((row, i) => ({ ...row, id: `preview-${i}` })),
+                );
+                setPreviewing(true);
+              })
+              .catch((e) => setError(e.message));
+          }}
+        >
+          Preview source references
+        </button>
+        <button
+          className="secondary"
+          disabled={busy || !canEdit}
+          onClick={() => void stage()}
+        >
+          Stage confirmed workbook references
+        </button>
+      </div>
+      <p className="helper">
+        Review source requirements, stage inclusion limits and broiler recipe
+        mappings. Scalar requirements have no assumed minimum/maximum meaning.
+        Nothing here becomes an approved specification or ingredient restriction
+        automatically. Existing imports can be staged safely without
+        duplication.
+      </p>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="notice" role="status">
+          {notice}
+        </p>
+      )}
+      <div className="editor-settings">
+        <label>
+          Reference category
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="requirement">Nutritional requirements</option>
+            <option value="restriction">Ingredient inclusion limits</option>
+            <option value="recipe">Broiler recipe mappings</option>
+          </select>
+        </label>
+        <label>
+          Search source labels
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="e.g. Layers, Salt"
+          />
+        </label>
+        <div>
+          <span className="tag">{visible.length} ROWS · UNVERIFIED</span>
+        </div>
+      </div>
+      {!rows.length ? (
+        <div className="empty">
+          <h3>No staged source references yet</h3>
+          <p>
+            Preview and confirm the supplied workbooks in Workbook import, then
+            stage their source references.
+          </p>
+        </div>
+      ) : (
+        <div className="catalog-list">
+          {visible.map((row) => (
+            <details key={row.id} className="catalog-entry">
+              <summary>
+                <strong>{row.label}</strong>
+                <span>{row.context}</span>
+                <small>{row.issues.length} review notes</small>
+              </summary>
+              <p className="helper">
+                Feed Formula Calculator.xlsx · {row.sheet} · row{" "}
+                {row.source_row} · SHA-256 {row.source_hash.slice(0, 16)}…
+              </p>
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Field</th>
+                      <th>Source cell</th>
+                      <th>Original value</th>
+                      <th>Normalized candidate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(row.fields).map(([key, field]) => (
+                      <tr key={key}>
+                        <td>{key}</td>
+                        <td>
+                          {row.sheet}!{field.cell}
+                        </td>
+                        <td>
+                          {field.raw === null ? "Blank" : String(field.raw)}
+                        </td>
+                        <td>{normalized(field)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="validation-issues">
+                <ul>
+                  {row.issues.map((issue, i) => (
+                    <li key={i}>{issue}</li>
+                  ))}
+                </ul>
+              </div>
+            </details>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
