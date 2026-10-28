@@ -175,3 +175,6 @@ Only managers/owners/administrators review returns and reversals. Correct return
 
 
 In **Production → a broiler batch → Broiler lifecycle**, managers can record observed health, actual treatments, reviewed culls and weighed live harvests. Enter the daily feed/death/sample record first. Unknown or unexpired recorded medication withdrawal dates block harvest. Explicit bird/kg prices retain original currencies; unpriced harvests remain unknown. Source JSON/CSV preserve immutable evidence, and pending receipt retries prevent duplicate withdrawals after a lost response. Cohort FCR includes measured withdrawals only when feed and biomass evidence are complete; cash, costs, processed yields and profitability remain separate.
+
+
+**Broiler record recovery** in the same Production screen adds evidence-backed withdrawal-guidance versions for genuine administrations and complete daily replacements/backfills. Original treatment/daily records remain unchanged. Revised deaths/samples must fit the full withdrawal history; later guidance flags conflicting earlier harvests without changing their original stock or prices. Current-source JSON/CSV include original/effective daily evidence and complete review chains.

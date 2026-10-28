@@ -1,3 +1,4 @@
+import { broilerRecoveryApi } from "./broiler-recovery-api";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -19,6 +20,8 @@ export async function broilerApi(
   user: { id: string },
   path: string,
 ) {
+  const recovery = await broilerRecoveryApi(request, user, path);
+  if (recovery) return recovery;
   if (
     path !== "broilers/lifecycle" ||
     !["GET", "POST"].includes(request.method)
@@ -36,7 +39,9 @@ export async function broilerApi(
       const r = (
         await c.query(
           `SELECT to_jsonb(u)||jsonb_build_object('stocked_on',u.stocked_on::text,'initial_weight_g',u.initial_weight_g::text) AS unit,o.timezone,(now() AT TIME ZONE o.timezone)::date::text AS today,
-   coalesce((SELECT jsonb_agg(to_jsonb(d)||jsonb_build_object('feed_kg',d.feed_kg::text,'average_weight_g',d.average_weight_g::text) ORDER BY d.recorded_on,d.id) FROM (SELECT * FROM daily_records WHERE organization_id=$1 AND unit_id=$2 ORDER BY recorded_on,id LIMIT 10001)d),'[]'::jsonb) AS records,
+   coalesce((SELECT jsonb_agg(to_jsonb(d)||jsonb_build_object('feed_kg',d.feed_kg::text,'average_weight_g',d.average_weight_g::text) ORDER BY d.recorded_on,d.id) FROM (SELECT * FROM effective_daily_records WHERE organization_id=$1 AND unit_id=$2 ORDER BY recorded_on,id LIMIT 10001)d),'[]'::jsonb) AS records,
+   coalesce((SELECT jsonb_agg(to_jsonb(d)||jsonb_build_object('feed_kg',d.feed_kg::text,'average_weight_g',d.average_weight_g::text) ORDER BY d.recorded_on,d.id) FROM (SELECT * FROM daily_records WHERE organization_id=$1 AND unit_id=$2 ORDER BY recorded_on,id LIMIT 10001)d),'[]'::jsonb) AS "originalRecords",
+   coalesce((SELECT jsonb_agg(to_jsonb(r)||jsonb_build_object('position',r.position::text,'expected_position',r.expected_position::text,'feed_kg',r.feed_kg::text,'average_weight_g',r.average_weight_g::text) ORDER BY r.position) FROM (SELECT * FROM broiler_reviews WHERE organization_id=$1 AND unit_id=$2 ORDER BY position LIMIT 10001)r),'[]'::jsonb) AS reviews,
    coalesce((SELECT jsonb_agg(to_jsonb(e)||jsonb_build_object('position',e.position::text,'expected_position',e.expected_position::text,'weight_kg',e.weight_kg::text,'price_per_unit',e.price_per_unit::text,'amount',e.amount::text) ORDER BY e.position) FROM (SELECT * FROM broiler_events WHERE organization_id=$1 AND unit_id=$2 ORDER BY position LIMIT 10001)e),'[]'::jsonb) AS events
    FROM production_units u JOIN organizations o ON o.id=u.organization_id WHERE u.organization_id=$1 AND u.id=$2 AND u.kind='broilers'`,
           [org, unit],
@@ -48,7 +53,9 @@ export async function broilerApi(
     if (
       source.events.length > 10000 ||
       source.records.length > 10000 ||
-      Buffer.byteLength(JSON.stringify(source)) > 3 * 1024 * 1024
+      (source.originalRecords?.length ?? 0) > 10000 ||
+      (source.reviews?.length ?? 0) > 10000 ||
+      Buffer.byteLength(JSON.stringify(source)) > 4 * 1024 * 1024
     )
       fail(
         422,
@@ -56,7 +63,9 @@ export async function broilerApi(
       );
     // Calendar context is returned for forms; evidence remains stable across days.
     const normalized = {
-      modelVersion: "broiler-live-lifecycle-v1",
+      modelVersion: "broiler-reviewed-lifecycle-v2",
+      originalRecords: source.originalRecords,
+      reviews: source.reviews,
       unit: source.unit,
       records: source.records,
       events: source.events,
@@ -105,10 +114,10 @@ export async function broilerApi(
     const u = (
       await c.query(
         `SELECT u.id,u.stocked_on::text,o.currency,(now() AT TIME ZONE o.timezone)::date::text AS today,
-   coalesce((SELECT max(position) FROM broiler_events WHERE unit_id=u.id),0)::text AS position,
-   (SELECT id FROM daily_records WHERE unit_id=u.id ORDER BY recorded_on DESC LIMIT 1) AS daily_id,
+   broiler_latest_position(u.id)::text AS position,
+   (SELECT id FROM effective_daily_records WHERE unit_id=u.id ORDER BY recorded_on DESC LIMIT 1) AS daily_id,
    (SELECT recorded_balance FROM production_population_balances WHERE id=u.id) AS balance,
-   greatest((SELECT max(recorded_on) FROM broiler_events WHERE unit_id=u.id),(SELECT max(recorded_on) FROM daily_records WHERE unit_id=u.id))::text AS last_day
+   greatest((SELECT max(recorded_on) FROM broiler_events WHERE unit_id=u.id),(SELECT max(recorded_on) FROM effective_daily_records WHERE unit_id=u.id),(SELECT max(observed_on) FROM broiler_reviews WHERE unit_id=u.id AND kind='withdrawal'))::text AS last_day
    FROM production_units u JOIN organizations o ON o.id=u.organization_id WHERE u.id=$1 AND u.organization_id=$2 AND u.kind='broilers'`,
         [p.unitId, p.organizationId],
       )
@@ -142,7 +151,7 @@ export async function broilerApi(
     if (p.kind === "harvest") {
       const hold = (
         await c.query(
-          "SELECT id FROM active_broiler_events WHERE unit_id=$1 AND kind='treatment' AND (earliest_harvest_on IS NULL OR earliest_harvest_on>$2) LIMIT 1",
+          "SELECT id FROM effective_broiler_treatments WHERE unit_id=$1 AND (earliest_harvest_on IS NULL OR earliest_harvest_on>$2) LIMIT 1",
           [p.unitId, p.date],
         )
       ).rows[0];
@@ -175,7 +184,7 @@ export async function broilerApi(
         ["cull", "harvest"].includes(original.kind) &&
         (
           await c.query(
-            "SELECT 1 FROM daily_records WHERE unit_id=$1 AND recorded_on>$2 UNION ALL SELECT 1 FROM active_broiler_events WHERE unit_id=$1 AND position>$3 LIMIT 1",
+            "SELECT 1 FROM effective_daily_records WHERE unit_id=$1 AND recorded_on>$2 UNION ALL SELECT 1 FROM active_broiler_events WHERE unit_id=$1 AND position>$3 UNION ALL SELECT 1 FROM broiler_reviews WHERE unit_id=$1 AND position>$3 LIMIT 1",
             [p.unitId, original.recorded_on, original.position],
           )
         ).rowCount

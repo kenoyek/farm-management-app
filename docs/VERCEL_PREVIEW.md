@@ -65,7 +65,7 @@ Publish the resulting app preview URL only after these checks pass. Local tests 
 
 ## Current session status
 
-The app is deployed at **https://farmstead-preview.vercel.app** with the separate worker at `https://farmstead-python-worker.vercel.app`. Both are new projects in the user's Vercel account. Neon Free provisioning and all twenty migrations succeeded. Only the restricted pooled `farm_server` credential is installed on the app; the worker has no database credential.
+The app is deployed at **https://farmstead-preview.vercel.app** with the separate worker at `https://farmstead-python-worker.vercel.app`. Both are new projects in the user's Vercel account. Neon Free provisioning and all twenty-one migrations succeeded. Only the restricted pooled `farm_server` credential is installed on the app; the worker has no database credential.
 
 The hosted app passed HTTPS checks for registration and Secure/HttpOnly/SameSite cookies, persistence, cross-origin write rejection, outsider isolation, a real HiGHS optimum and an infeasible scenario, immutable recipe snapshots, CSV/Excel report contents, real workbook inspection, 32-row mapped preview and an exact SHA-256 source-file download round trip. Chromium also verified the saved recipe in the library, responsive mobile rendering after reload and no uncaught client errors; all 22 hosted checks passed. Synthetic validation fixtures are labeled and private to their test accounts; local integration cleanup suites were not run against hosted data.
 
@@ -138,3 +138,6 @@ For broiler lifecycle, apply additive migration 020 to the dedicated preview dat
 
 
 Broiler lifecycle hosted evidence: migration 020 and restricted-role checks passed before deployment. The feature and complete-source CSV correction reached READY at the stable URL; 32 hosted API/Chromium checks plus independent Decimal/CSV/SHA-256 reconciliation passed. The synthetic batch ended with 87 recorded birds (100 opening, one daily death, two culls, ten harvested). Original NGN price evidence remained unchanged after USD settings; active values are not cash/profit. All fixtures are labeled and private. The Python worker and secrets were unchanged.
+
+
+For broiler recovery, apply migration 021 before publishing the app. It adds immutable manager-reviewed guidance/daily history and updates invoker effective/population views plus shared state/timeline guards. Validate genuine-administration preservation, known/unknown withdrawal revisions, past-harvest conflict flags, full daily replacement/backfill, exact retries, stale manager/lifecycle states and private v2 JSON/CSV. The Python worker and runtime secrets are unchanged; all hosted checks use explicitly synthetic private accounts, never local cleanup suites.

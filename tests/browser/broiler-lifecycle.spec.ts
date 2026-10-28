@@ -119,7 +119,10 @@ test("reviews broiler treatment, withdrawal, cull and weighed partial harvest wi
       await region
         .getByLabel("Evidence / veterinary reference", { exact: true })
         .fill("Synthetic dated veterinary / weighbridge register");
-      await region.getByRole("checkbox").check();
+      await region
+        .getByRole("group", { name: "Review lifecycle activity", exact: true })
+        .getByRole("checkbox")
+        .check();
       await region
         .getByRole("button", {
           name: "Save broiler lifecycle record",

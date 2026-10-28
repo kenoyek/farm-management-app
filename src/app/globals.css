@@ -1893,3 +1893,9 @@ textarea {
   display: block;
   max-width: 220px;
 }
+
+.broiler-recovery {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}

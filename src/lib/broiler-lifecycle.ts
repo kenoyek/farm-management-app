@@ -1,3 +1,4 @@
+import { broilerTreatments, type BroilerReview } from "./broiler-recovery";
 import DecimalBase from "decimal.js";
 const Decimal = DecimalBase.clone({ precision: 40 });
 import { z } from "zod";
@@ -102,6 +103,7 @@ export type BroilerEvent = {
   submission: BroilerInput;
 };
 export type BroilerUnit = {
+  organization_id?: string;
   id: string;
   name: string;
   kind: string;
@@ -120,6 +122,8 @@ export type BroilerDaily = {
 export type BroilerSource = {
   unit: BroilerUnit;
   records: BroilerDaily[];
+  originalRecords?: BroilerDaily[];
+  reviews?: BroilerReview[];
   events: BroilerEvent[];
   timezone: string;
   today: string;
@@ -154,10 +158,13 @@ export function broilerSummary(s: BroilerSource) {
   const lastDaily = s.records.at(-1),
     lastEvent = s.events.at(-1),
     sample = s.records.filter((r) => r.average_weight_g !== null).at(-1);
+  const reviews = s.reviews ?? [];
+  const treatments = broilerTreatments(s.events, reviews);
   const asOf = [
     s.unit.stocked_on,
     lastDaily?.recorded_on ?? "",
     lastEvent?.recorded_on ?? "",
+    ...reviews.filter((r) => r.kind === "withdrawal").map((r) => r.observed_on),
   ]
     .sort()
     .at(-1)!;
@@ -218,17 +225,83 @@ export function broilerSummary(s: BroilerSource) {
         .plus(e.amount)
         .toFixed(4);
   }
-  const holds = active.filter(
-    (e) =>
-      e.kind === "treatment" &&
-      (e.earliest_harvest_on === null || e.earliest_harvest_on > s.today),
+  const holds = treatments.filter(
+    (t) => t.earliest_harvest_on === null || t.earliest_harvest_on > s.today,
   );
+  const harvestGuidance = active
+    .filter((e) => e.kind === "harvest")
+    .map((h) => {
+      const before = s.events.filter(
+        (t) =>
+          t.kind === "treatment" &&
+          BigInt(t.position) < BigInt(h.position) &&
+          !s.events.some(
+            (v) =>
+              v.void_of_id === t.id && BigInt(v.position) < BigInt(h.position),
+          ),
+      );
+      const recordedHolds = before
+        .filter((t) => {
+          const prior = reviews
+            .filter(
+              (r) =>
+                r.kind === "withdrawal" &&
+                r.treatment_id === t.id &&
+                BigInt(r.position) < BigInt(h.position),
+            )
+            .at(-1);
+          const earliest = prior
+            ? prior.earliest_harvest_on
+            : t.earliest_harvest_on;
+          return earliest === null || earliest > h.recorded_on;
+        })
+        .map((t) => t.id);
+      const currentConcerns = treatments
+        .filter(
+          (t) =>
+            BigInt(t.position) < BigInt(h.position) &&
+            (t.earliest_harvest_on === null ||
+              t.earliest_harvest_on > h.recorded_on),
+        )
+        .map((t) => ({
+          treatmentId: t.id,
+          product: t.product,
+          earliestHarvestOn: t.earliest_harvest_on,
+          reviewId: t.review_id,
+        }));
+      return {
+        harvestId: h.id,
+        date: h.recorded_on,
+        recordedHolds,
+        currentConcerns,
+      };
+    });
+  const populationEvidenceIssues = active
+    .filter((e) => e.kind === "health" || e.kind === "treatment")
+    .filter((e) => {
+      const recorded =
+        s.unit.opening_count -
+        s.records
+          .filter((r) => r.recorded_on <= e.recorded_on)
+          .reduce((n, r) => n + r.mortality, 0) -
+        withdrawals
+          .filter(
+            (w) =>
+              w.recorded_on < e.recorded_on ||
+              (w.recorded_on === e.recorded_on &&
+                BigInt(w.position) < BigInt(e.position)),
+          )
+          .reduce((n, w) => n + w.quantity!, 0);
+      return e.quantity! > recorded;
+    })
+    .map((e) => e.id);
   const voidable = active
     .filter(
       (e) =>
         !(e.kind === "cull" || e.kind === "harvest") ||
         (!s.records.some((r) => r.recorded_on > e.recorded_on) &&
-          !active.some((n) => BigInt(n.position) > BigInt(e.position))),
+          !active.some((n) => BigInt(n.position) > BigInt(e.position)) &&
+          !reviews.some((r) => BigInt(r.position) > BigInt(e.position))),
     )
     .map((e) => e.id);
   const sampleDays = sample
@@ -246,7 +319,10 @@ export function broilerSummary(s: BroilerSource) {
     sampledAdgGPerDay,
     initialBiomassKg: initial.toFixed(6),
     asOf,
-    expectedPosition: lastEvent?.position ?? "0",
+    expectedPosition: [...s.events, ...reviews].reduce(
+      (last, e) => (BigInt(e.position) > BigInt(last) ? e.position : last),
+      "0",
+    ),
     expectedDailyId: lastDaily?.id ?? null,
     balance,
     mortality,
@@ -263,6 +339,9 @@ export function broilerSummary(s: BroilerSource) {
     sales,
     unpricedHarvests,
     holds,
+    treatments,
+    harvestGuidance,
+    populationEvidenceIssues,
     voidable,
   };
 }
@@ -299,6 +378,26 @@ export function broilerCsv(s: BroilerSnapshot) {
       "Sample size",
       "Complete original source",
     ],
+    ...(s.originalRecords ?? s.records).map((r) => [
+      r.id,
+      r.recorded_on,
+      r.mortality,
+      r.feed_kg,
+      r.average_weight_g,
+      r.sample_size,
+      JSON.stringify(r),
+    ]),
+    [],
+    ["Effective daily evidence"],
+    [
+      "ID",
+      "Date",
+      "Deaths",
+      "Feed kg",
+      "Sample average g",
+      "Sample size",
+      "Complete effective source",
+    ],
     ...s.records.map((r) => [
       r.id,
       r.recorded_on,
@@ -307,6 +406,84 @@ export function broilerCsv(s: BroilerSnapshot) {
       r.average_weight_g,
       r.sample_size,
       JSON.stringify(r),
+    ]),
+    [],
+    ["Review history"],
+    [
+      "ID",
+      "Position",
+      "Type",
+      "Observation / guidance review date",
+      "Previous review",
+      "Original daily ID",
+      "Original treatment ID",
+      "Deaths",
+      "Feed kg",
+      "Sample average g",
+      "Sample size",
+      "Notes",
+      "Earliest harvest date",
+      "Reason",
+      "Evidence",
+      "Actor",
+      "Created at",
+      "Complete immutable review",
+    ],
+    ...(s.reviews ?? []).map((r) => [
+      r.id,
+      r.position,
+      r.kind,
+      r.observed_on,
+      r.previous_id,
+      r.base_record_id,
+      r.treatment_id,
+      r.mortality,
+      r.feed_kg,
+      r.average_weight_g,
+      r.sample_size,
+      r.notes,
+      r.earliest_harvest_on,
+      r.reason,
+      r.evidence,
+      r.created_by,
+      r.created_at,
+      JSON.stringify(r),
+    ]),
+    [],
+    ["Current treatment guidance"],
+    [
+      "Original treatment ID",
+      "Product",
+      "Administration date",
+      "Original earliest harvest date",
+      "Current earliest harvest date",
+      "Latest review ID",
+      "Review reason",
+      "Review evidence",
+    ],
+    ...s.summary.treatments.map((t) => [
+      t.id,
+      t.product,
+      t.recorded_on,
+      t.original_earliest_harvest_on,
+      t.earliest_harvest_on,
+      t.review_id,
+      t.review_reason,
+      t.review_evidence,
+    ]),
+    [],
+    ["Historical harvest guidance reconciliation"],
+    [
+      "Harvest ID",
+      "Date",
+      "Recorded holds at posting",
+      "Current guidance concerns",
+    ],
+    ...s.summary.harvestGuidance.map((h) => [
+      h.harvestId,
+      h.date,
+      h.recordedHolds.join(";"),
+      JSON.stringify(h.currentConcerns),
     ]),
     [],
     ["Immutable lifecycle events"],

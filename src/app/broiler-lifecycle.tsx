@@ -1,4 +1,5 @@
 "use client";
+import BroilerRecovery from "./broiler-recovery";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError, downloadReport, downloadJson } from "@/lib/client";
 import {
@@ -26,6 +27,7 @@ export default function BroilerLifecycle({
     [priceBasis, setPriceBasis] = useState("unpriced"),
     [busy, setBusy] = useState(false),
     [stale, setStale] = useState(true),
+    [recoveryPending, setRecoveryPending] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [pending, setPending] = useState<BroilerInput | null>(null),
@@ -142,7 +144,7 @@ export default function BroilerLifecycle({
   }
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!data || pending || stale) return;
+    if (!data || pending || stale || recoveryPending) return;
     const f = new FormData(e.currentTarget),
       str = (name: string) => String(f.get(name) ?? "");
     const common = {
@@ -191,7 +193,7 @@ export default function BroilerLifecycle({
     }
     await save(parsed.data);
   }
-  const disabled = busy || !!pending || stale;
+  const disabled = busy || !!pending || stale || recoveryPending;
   return (
     <section className="panel broiler-lifecycle" aria-label="Broiler lifecycle">
       <div className="panel-heading">
@@ -335,10 +337,47 @@ export default function BroilerLifecycle({
             Record the product, actual administration and earliest harvest date
             from the label or veterinary guidance. An unknown date blocks
             harvest. The app checks recorded dates; it does not prescribe
-            medication or certify veterinary clearance. Correct an erroneous
-            treatment by voiding it with evidence and recording the correct
-            details.
+            medication or certify veterinary clearance. Review new withdrawal
+            guidance below while preserving the original administration. Void
+            only an erroneous administration.
           </p>
+          {data.summary.harvestGuidance.some(
+            (h) => h.currentConcerns.length > 0,
+          ) && (
+            <p className="error" role="alert">
+              Current withdrawal guidance conflicts with{" "}
+              {
+                data.summary.harvestGuidance.filter(
+                  (h) => h.currentConcerns.length > 0,
+                ).length
+              }{" "}
+              earlier recorded harvest(s). Their original postings remain
+              preserved. Review the linked treatment and harvest evidence with a
+              veterinarian.
+            </p>
+          )}
+          {data.summary.populationEvidenceIssues.length > 0 && (
+            <p className="notice">
+              Revised daily evidence puts some earlier observed/treated counts
+              above the recorded population:{" "}
+              {data.summary.populationEvidenceIssues.join(", ")}. Original
+              health/treatment counts remain unchanged; review the source
+              discrepancy.
+            </p>
+          )}
+          <BroilerRecovery
+            snapshot={data}
+            actor={actor}
+            canReview={canReview}
+            blocked={busy || !!pending || stale}
+            onPendingChange={setRecoveryPending}
+            onSaved={async () => {
+              const d = await api<BroilerSnapshot>(endpoint);
+              await onSaved();
+              setData(d);
+              setStale(false);
+            }}
+          />
           {canReview ? (
             <form onSubmit={(e) => void submit(e)}>
               <fieldset
