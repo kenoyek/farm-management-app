@@ -722,6 +722,12 @@ it("exports private current evidence with matching digests and spreadsheet-safe 
   expect(text).toContain("'=Synthetic buyer");
   expect(text).toContain("9310.7500");
   expect(text).toContain(mainReceipt);
+  expect(text).toContain("Receipt source evidence");
+  expect(text).toContain(
+    String(
+      before.events.find((e) => e.id === mainReceipt)?.source_snapshot?.id,
+    ),
+  );
   expect((await snapshot()).events).toEqual(before.events);
   await expect(
     tenant(owner, (c) =>

@@ -451,5 +451,32 @@ export function eggSheets(
         }),
       ],
     },
+    {
+      name: "Receipt source evidence",
+      headerRows: [1],
+      rows: [
+        [
+          "Receipt UUID",
+          "Batch UUID",
+          "Source record UUID",
+          "Source review UUID",
+          "Complete immutable actual source JSON",
+        ],
+        ...source.events
+          .filter((e) => e.kind === "receipt")
+          .map((e) => [
+            e.id,
+            e.batch_id,
+            e.source_snapshot?.id === undefined
+              ? null
+              : String(e.source_snapshot.id),
+            e.source_snapshot?.adjustment_id === undefined ||
+            e.source_snapshot?.adjustment_id === null
+              ? null
+              : String(e.source_snapshot.adjustment_id),
+            JSON.stringify(e.source_snapshot),
+          ]),
+      ],
+    },
   ];
 }

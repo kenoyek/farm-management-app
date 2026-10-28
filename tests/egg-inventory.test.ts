@@ -222,6 +222,8 @@ it("exports exact inventory evidence with spreadsheet-safe names and refuses cli
   expect(csv).toContain("'=Synthetic batch");
   expect(csv).toContain("'=Source count sheet");
   expect(csv).toContain(source.events[0].id);
+  expect(csv).toContain("Receipt source evidence");
+  expect(csv).toContain(source.collections[0].id);
   expect(
     eggEventInput.safeParse({
       kind: "receipt",
