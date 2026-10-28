@@ -1867,3 +1867,29 @@ textarea {
 .egg-inventory table[aria-label="Egg movement history"] {
   min-width: 1050px;
 }
+
+.broiler-lifecycle {
+  display: grid;
+  gap: 1rem;
+  margin-block: 1.5rem;
+}
+.broiler-fields {
+  border: 1px solid var(--border);
+  padding: 1rem;
+  border-radius: 12px;
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.broiler-lifecycle .table-scroll table {
+  min-width: 960px;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.broiler-lifecycle .helper {
+  overflow-wrap: anywhere;
+}
+.broiler-lifecycle td .helper {
+  display: block;
+  max-width: 220px;
+}

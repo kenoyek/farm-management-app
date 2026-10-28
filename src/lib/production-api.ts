@@ -1,3 +1,4 @@
+import { broilerApi } from "./broiler-api";
 import { eggInventoryApi } from "./egg-inventory-api";
 import { layerRecoveryApi } from "./layer-recovery-api";
 import { layerReportApi } from "./layer-report-api";
@@ -45,6 +46,8 @@ export async function productionApi(
   user: { id: string },
   path: string,
 ) {
+  const broilers = await broilerApi(request, user, path);
+  if (broilers) return broilers;
   const eggs = await eggInventoryApi(request, user, path);
   if (eggs) return eggs;
   const recovery = await layerRecoveryApi(request, user, path);

@@ -814,6 +814,7 @@ export default function Workspace() {
               )}
               {view === "Production" && (
                 <Production
+                  actor={user.email}
                   key={orgId}
                   organizationId={orgId}
                   role={org.role}

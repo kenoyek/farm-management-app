@@ -1,5 +1,6 @@
 "use client";
 import { useDialog } from "@/lib/use-dialog";
+import BroilerLifecycle from "./broiler-lifecycle";
 import LayerRecovery from "./layer-recovery";
 import LayerReporting from "./layer-report";
 import { useEffect, useState, type FormEvent } from "react";
@@ -40,9 +41,11 @@ export default function Production({
   organizationId,
   role,
   farms,
+  actor,
 }: {
   organizationId: string;
   role: string;
+  actor: string;
   farms: Farm[];
 }) {
   const [units, setUnits] = useState<Unit[]>([]),
@@ -236,12 +239,7 @@ export default function Production({
           </div>
           <div className="stats-grid">
             {[
-              [
-                unit.kind === "layers"
-                  ? "Recorded population balance"
-                  : "Live population",
-                live.toLocaleString(),
-              ],
+              ["Recorded population balance", live.toLocaleString()],
               ["Feed recorded", `${feed.toFixed(2)} kg`],
               unit.kind === "layers"
                 ? ["Saleable eggs", eggs.toLocaleString()]
@@ -257,7 +255,7 @@ export default function Production({
               </article>
             ))}
           </div>
-          {unit.kind !== "layers" && (
+          {unit.kind === "catfish" && (
             <div className="panel performance">
               <Activity size={22} />
               <div>
@@ -290,6 +288,17 @@ export default function Production({
                 </p>
               </div>
             </div>
+          )}
+          {unit.kind === "broilers" && (
+            <BroilerLifecycle
+              key={`${organizationId}:${unit.id}:${actor}`}
+              organizationId={organizationId}
+              unitId={unit.id}
+              actor={actor}
+              canReview={canStock}
+              revision={rows.at(-1)?.id ?? "none"}
+              onSaved={refresh}
+            />
           )}
           {unit.kind === "layers" && (
             <div className="record-note">
@@ -427,8 +436,9 @@ export default function Production({
             <p className="helper">
               Records are append-only, one per unit per day, in date order.
               Enter older records first. No forecasts are posted here. Layer
-              corrections and missed dates use reviewed recovery above.
-              Transfers and partial harvests require a later workflow.
+              corrections and missed dates use reviewed recovery above. Broiler
+              culls and live harvests use the reviewed lifecycle workflow above.
+              Animal transfers remain outstanding.
             </p>
           </section>
         </>
