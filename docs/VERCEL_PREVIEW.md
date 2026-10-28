@@ -93,3 +93,6 @@ For structured processing constraints, apply migration 016 and deploy the backwa
 
 
 The processing update passed all 25 hosted API/browser checks after Git deployment `2093b2c`, plus direct worker 31/32-row boundary and private-source checks. Its downloaded Excel workbook was independently read to confirm exact method evidence, group cap and saved total. Historical CSV bytes remained identical after reference/method/price/profile revisions. The dedicated database now has sixteen applied migrations. Hosted fixtures remain clearly labeled synthetic in private organizations; no local cleanup suite was pointed at Neon.
+
+
+Optimizer scenario comparison is an app-only update. It reads existing immutable run snapshots through the current restricted Neon role, with no migration or Python protocol change. The existing authenticated Excel worker produces its five-sheet reports. Keep the current environment bindings and worker deployment; Git-triggered app deployment is sufficient. Verify selected-run tenant isolation, genuine optimal/infeasible comparisons, deterministic history, exports and browser controls on private labeled synthetic fixtures after deployment.

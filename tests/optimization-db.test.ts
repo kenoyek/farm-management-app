@@ -1,5 +1,6 @@
 import { beforeAll, afterAll, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { NextRequest } from "next/server";
 import { admin } from "./admin-db";
 import { pool, tenant } from "../src/lib/db";
@@ -15,6 +16,7 @@ let owner: string,
   b: string,
   profile: string,
   optimalRun: string,
+  boundedRun: string,
   infeasibleRun: string;
 const evidence = "Synthetic test reference; not agricultural guidance";
 async function post(actor: string, path: string, body: unknown) {
@@ -148,6 +150,19 @@ beforeAll(async () => {
   ).json();
   expect(infeasible.status).toBe("infeasible");
   infeasibleRun = infeasible.runId;
+  const bounded = await (
+    await post(nutritionist, "formulas/optimize", {
+      ...input(),
+      name: "=Synthetic bounded scenario",
+      batchKg: 500,
+      lines: [
+        { ingredientId: a, percent: 50, max: 60 },
+        { ingredientId: b, percent: 50 },
+      ],
+    })
+  ).json();
+  expect(bounded.status).toBe("optimal");
+  boundedRun = bounded.runId;
 });
 afterAll(async () => {
   await admin.query("DELETE FROM organizations WHERE id=ANY($1::uuid[])", [
@@ -307,4 +322,129 @@ it("labels legacy/malformed outcomes and refuses restoration of cross-tenant ref
   expect(rejected.restoration).toBeNull();
   expect(rejected.view).toBeNull();
   expect(rejected.summary.status).toBe("unknown");
+});
+
+it("compares real optimal/infeasible runs for owner and auditor without creating formula or stock events", async () => {
+  const response = await post(auditor, "optimization-runs/compare", {
+    organizationId: org,
+    runIds: [optimalRun, infeasibleRun],
+    batchKg: 1000,
+  });
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  const c = await response.json();
+  expect(c.runs[0]).toMatchObject({
+    costPerKg: "150.0000",
+    batchCost: "150000.0000",
+  });
+  expect(c.runs[1]).toMatchObject({ status: "infeasible", costPerKg: null });
+  expect(c.runs[0].allocations[0].reference.price).toBe("100.0000");
+  expect(c.runs[0].profile.name).toBe("Starter fixture");
+  expect(c.evidenceSha256).toMatch(/^[a-f0-9]{64}$/);
+  const repeated = await (
+    await post(owner, "optimization-runs/compare", {
+      organizationId: org,
+      runIds: [optimalRun, infeasibleRun],
+      batchKg: 1000,
+    })
+  ).json();
+  expect(repeated).toEqual(c);
+  const csvPath = `optimization-runs/compare?organizationId=${org}&runId=${optimalRun}&runId=${infeasibleRun}&batchKg=1000&format=csv`;
+  const exported = (await feedApi(
+    new NextRequest(`http://localhost/api/${csvPath}`),
+    { id: auditor },
+    "optimization-runs/compare",
+  ))!;
+  expect(exported.headers.get("x-evidence-sha256")).toBe(c.evidenceSha256);
+  const csv = await exported.text();
+  expect(csv).toContain("150000.0000");
+  expect(csv).toContain("infeasible");
+  expect(csv).toContain("100.0000");
+  expect(
+    (
+      await tenant(owner, (c) =>
+        c.query("SELECT id FROM formula_versions WHERE organization_id=$1", [
+          org,
+        ]),
+      )
+    ).rowCount,
+  ).toBe(0);
+});
+it("denies whole mixed-tenant comparisons, duplicate IDs and outsider reports", async () => {
+  for (const [actor, target, ids] of [
+    [other, org, [optimalRun, infeasibleRun]],
+    [owner, foreignOrg, [optimalRun, infeasibleRun]],
+    [owner, org, [optimalRun, randomUUID()]],
+  ] as [string, string, string[]][])
+    await expect(
+      post(actor, "optimization-runs/compare", {
+        organizationId: target,
+        runIds: ids,
+        batchKg: 100,
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+  await expect(
+    post(owner, "optimization-runs/compare", {
+      organizationId: org,
+      runIds: [optimalRun, optimalRun],
+      batchKg: 100,
+    }),
+  ).rejects.toThrow();
+});
+
+it("compares real bounded optima at a common batch and produces five literal-text XLSX worksheets", async () => {
+  const data = {
+    organizationId: org,
+    runIds: [optimalRun, boundedRun, infeasibleRun],
+    batchKg: 1000,
+  };
+  const c = await (
+    await post(auditor, "optimization-runs/compare", data)
+  ).json();
+  expect(c.runs[1]).toMatchObject({
+    originalBatchKg: 500,
+    costPerKg: "180.0000",
+    batchCost: "180000.0000",
+    deltaCostPerKg: "30.0000",
+    deltaBatchCost: "30000.0000",
+  });
+  const reversed = await (
+    await post(owner, "optimization-runs/compare", {
+      ...data,
+      runIds: [boundedRun, optimalRun],
+    })
+  ).json();
+  expect(reversed.runs[1].deltaBatchCost).toBe("-30000.0000");
+  const query = new URLSearchParams({
+    organizationId: org,
+    batchKg: "1000",
+    format: "xlsx",
+  });
+  for (const id of data.runIds) query.append("runId", id);
+  const response = (await feedApi(
+    new NextRequest(`http://localhost/api/optimization-runs/compare?${query}`),
+    { id: auditor },
+    "optimization-runs/compare",
+  ))!;
+  expect(response.headers.get("x-evidence-sha256")).toBe(c.evidenceSha256);
+  const inspection = spawnSync(
+    process.env.FARM_PYTHON ?? "python",
+    [
+      "-c",
+      "import sys,io,json;from openpyxl import load_workbook;w=load_workbook(io.BytesIO(sys.stdin.buffer.read()),data_only=False);print(json.dumps({'sheets':w.sheetnames,'name':w['Runs']['B10'].value,'type':w['Runs']['B10'].data_type,'cost':w['Runs']['G10'].value,'delta':w['Runs']['I10'].value,'zeroFormulas':not any(c.data_type=='f' for s in w for row in s for c in row)}))",
+    ],
+    {
+      input: Buffer.from(await response.arrayBuffer()),
+      timeout: 10000,
+      env: { ...process.env, OPENBLAS_NUM_THREADS: "1" },
+    },
+  );
+  expect(inspection.status).toBe(0);
+  expect(JSON.parse(inspection.stdout.toString())).toEqual({
+    sheets: ["Runs", "Allocations", "Nutrients", "Constraints", "Run evidence"],
+    name: "=Synthetic bounded scenario",
+    type: "s",
+    cost: "180000.0000",
+    delta: "30000.0000",
+    zeroFormulas: true,
+  });
 });

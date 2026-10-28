@@ -7,6 +7,7 @@ import type {
   OptimizationSummary,
 } from "@/lib/optimization-history";
 import OptimizationEvidence from "./optimization-evidence";
+import OptimizationComparisonPanel from "./optimization-comparison";
 
 export default function OptimizationHistory({
   organizationId,
@@ -187,6 +188,13 @@ export default function OptimizationHistory({
           </div>
         )}
       </section>
+      {!loading && runs.length >= 2 && (
+        <OptimizationComparisonPanel
+          key={organizationId}
+          organizationId={organizationId}
+          runs={runs}
+        />
+      )}
       {detailLoading && <p role="status">Loading run evidence…</p>}
       {detail && (
         <section

@@ -1,3 +1,4 @@
+import { optimizationComparisonApi } from "./optimization-comparison-api";
 import { NextRequest, NextResponse } from "next/server";
 import { tenant } from "./db";
 import { id } from "./validation";
@@ -14,6 +15,8 @@ export async function optimizationRunApi(
   user: { id: string },
   path: string,
 ) {
+  const comparison = await optimizationComparisonApi(request, user, path);
+  if (comparison) return comparison;
   const match = /^optimization-runs(?:\/([^/]+))?$/.exec(path);
   if (!match || request.method !== "GET") return null;
   const org = id.parse(request.nextUrl.searchParams.get("organizationId"));

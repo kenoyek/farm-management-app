@@ -119,3 +119,10 @@ Open **Recipe library** to inspect or clone the resulting draft. CSV/Excel inclu
 ### Reviewed processing constraints
 
 Record a **Processing method** and supporting evidence together in Ingredients; leave both blank when unknown. Specifications can add up to twenty groups of exact allowed ingredient revisions, with explicit combined min/max percentages, optional required methods and source evidence. Only nutritionists may review these specifications. Unknown or mismatched methods block applicable groups; notes are never parsed into qualifications. Manual calculations, approval and genuine optimization enforce the combined bounds. Saved runs and CSV/XLSX retain their original groups/method evidence after revisions. These records do not certify an actual treatment or create a manufacturing event.
+
+
+## Compare optimizer scenarios
+
+In **Feed studio → Optimizer history**, select two to four saved runs, choose **Baseline optimizer run** and a common planning batch, then **Compare selected runs**. Compare historical costs, original candidate bounds/availability, exact-reference solutions, each run's reviewed limits and diagnostic evidence. Infeasible runs show no solution or cost; missing historical evidence stays unavailable. Nutrient deltas require matching recorded scientific contexts and definitions. A smaller historical cost does not establish scientific suitability or approval.
+
+Changing the comparison weight scales saved costs/quantities for planning and does not rerun stock constraints. Use **Load scenario as draft** and a fresh solve separately when changing the actual scenario. Comparison controls are temporary; saved runs remain immutable and selectable after reload. JSON, CSV and five-sheet Excel exports include the baseline, batch, exact IDs, historical evidence and deterministic comparison SHA-256. Auditors may compare/export; tenant access is checked for every selected run.

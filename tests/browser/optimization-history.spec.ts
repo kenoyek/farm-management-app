@@ -251,6 +251,119 @@ test("explains infeasibility, preserves run evidence and restores scenarios as d
     await expect(page.getByRole("button", { name: /^View run / })).toHaveCount(
       2,
     );
+    // Compare genuine existing outcomes without another login or weakening auth limits.
+    const listing = await (
+      await page.request.get(`/api/optimization-runs?organizationId=${org}`)
+    ).json();
+    const optimalId = listing.find(
+      (r: { status: string }) => r.status === "optimal",
+    ).id;
+    const existing = await (
+      await page.request.get(
+        `/api/optimization-runs/${optimalId}?organizationId=${org}`,
+      )
+    ).json();
+    const bounded = await page.request.post("/api/formulas/optimize", {
+      headers,
+      data: {
+        ...existing.record.request,
+        name: "Synthetic bounded comparison",
+        batchKg: 500,
+        lines: existing.record.request.lines.map(
+          (l: { ingredientId: string }, i: number) => ({
+            ...l,
+            ...(i === 0 ? { max: 60 } : {}),
+          }),
+        ),
+      },
+    });
+    expect(bounded.status()).toBe(200);
+    const boundedRun = await bounded.json();
+    expect(boundedRun.status).toBe("optimal");
+    await page
+      .getByRole("button", { name: "Refresh runs", exact: true })
+      .click();
+    const panel = page.getByRole("region", {
+      name: "Optimizer scenario comparison",
+      exact: true,
+    });
+    for (const id of [optimalId, boundedRun.runId, record.id])
+      await panel
+        .getByRole("checkbox", {
+          name: `Compare run ${id.slice(0, 8)}`,
+          exact: true,
+        })
+        .check();
+    await panel
+      .getByRole("combobox", { name: "Baseline optimizer run", exact: true })
+      .selectOption(optimalId);
+    await panel
+      .getByLabel("Optimizer comparison batch kg", { exact: true })
+      .fill("1000");
+    await panel
+      .getByRole("button", { name: "Compare selected runs", exact: true })
+      .click();
+    const comparison = page.getByRole("region", {
+      name: "Optimizer comparison results",
+      exact: true,
+    });
+    await expect(
+      comparison
+        .getByRole("table", { name: "Scenario outcomes" })
+        .getByRole("row")
+        .filter({ hasText: "Synthetic bounded comparison" }),
+    ).toContainText("30000.0000");
+    await expect(
+      comparison
+        .getByRole("table", { name: "Scenario outcomes" })
+        .getByRole("row")
+        .filter({ hasText: "infeasible" }),
+    ).toContainText("Unavailable");
+    const jsonDownload = page.waitForEvent("download");
+    await comparison
+      .getByRole("button", { name: "Download comparison JSON", exact: true })
+      .click();
+    const compared = JSON.parse(
+      readFileSync((await (await jsonDownload).path())!, "utf8"),
+    );
+    expect(compared.baselineId).toBe(optimalId);
+    expect(compared.runs[1].deltaBatchCost).toBe("30000.0000");
+    expect(compared.runs[2].costPerKg).toBeNull();
+    for (const format of ["CSV", "XLSX"]) {
+      const downloaded = page.waitForEvent("download");
+      await comparison
+        .getByRole("button", {
+          name: `Download comparison ${format}`,
+          exact: true,
+        })
+        .click();
+      const bytes = readFileSync((await (await downloaded).path())!);
+      expect(
+        format === "XLSX"
+          ? bytes.subarray(0, 2).toString() === "PK"
+          : bytes.toString().includes("Synthetic bounded comparison"),
+      ).toBe(true);
+    }
+    await panel
+      .getByRole("combobox", { name: "Baseline optimizer run", exact: true })
+      .selectOption(boundedRun.runId);
+    await expect(comparison).not.toBeVisible();
+    await panel
+      .getByRole("button", { name: "Compare selected runs", exact: true })
+      .click();
+    await expect(
+      comparison.getByRole("table", { name: "Scenario outcomes" }),
+    ).toContainText("-30000.0000");
+    await page
+      .getByRole("combobox", { name: "Run status", exact: true })
+      .selectOption("infeasible");
+    await expect(panel.getByRole("checkbox", { checked: true })).toHaveCount(3);
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
     expect(
       (
         await db.query(
