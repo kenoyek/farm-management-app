@@ -387,7 +387,7 @@ export async function recipePdf(
         r[4] = l.kg;
         return r;
       }),
-      [170, 178, 40, 65, 80, 72, 50, 50, 73],
+      [155, 163, 40, 65, 80, 72, 65, 65, 73],
     );
     if (report.issues.length) {
       heading("Saved review issues");
