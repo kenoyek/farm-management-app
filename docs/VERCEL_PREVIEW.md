@@ -141,3 +141,6 @@ Broiler lifecycle hosted evidence: migration 020 and restricted-role checks pass
 
 
 For broiler recovery, apply migration 021 before publishing the app. It adds immutable manager-reviewed guidance/daily history and updates invoker effective/population views plus shared state/timeline guards. Validate genuine-administration preservation, known/unknown withdrawal revisions, past-harvest conflict flags, full daily replacement/backfill, exact retries, stale manager/lifecycle states and private v2 JSON/CSV. The Python worker and runtime secrets are unchanged; all hosted checks use explicitly synthetic private accounts, never local cleanup suites.
+
+
+Broiler recovery hosted evidence: migration 021 and restricted-runtime checks passed before app deployment `78c1c44` reached READY. All 35 hosted API/Chromium checks and independent complete-source Decimal/CSV/SHA-256 replay passed. The synthetic fixture retained four original daily records, five effective observed days, nine linked reviews and one unchanged genuine administration, reconciling 89 birds after one current daily death and ten live-harvested birds. Original NGN harvest prices remained unchanged after USD settings. GitHub Actions run 40783906676 passed the full validation workflow. Local suites were not pointed at hosted data; worker code/secrets were unchanged.
