@@ -371,13 +371,23 @@ export async function recipePdf(
     );
     heading("Ingredient quantities");
     await table(
-      mixing.rows[15] as string[],
+      [
+        "Ingredient",
+        "Reference UUID",
+        "Rev.",
+        "Inclusion %",
+        "Batch kg",
+        "NGN/kg",
+        "Min %",
+        "Max %",
+        "Available kg",
+      ],
       report.allocations.map((l, i) => {
         const r = [...mixing.rows[16 + i]];
         r[4] = l.kg;
         return r;
       }),
-      [160, 150, 42, 53, 78, 80, 52, 52, 82],
+      [170, 178, 40, 65, 80, 72, 50, 50, 73],
     );
     if (report.issues.length) {
       heading("Saved review issues");

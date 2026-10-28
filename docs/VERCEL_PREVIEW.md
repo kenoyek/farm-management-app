@@ -102,3 +102,6 @@ The scenario-comparison update passed 30 hosted API/browser checks after Git dep
 
 
 Saved mixing PDFs are an app-only update using pinned JavaScript dependencies and bundled licensed fonts. `next.config.ts` explicitly traces the font assets into the API function; no runtime download is made. Keep existing Neon/worker bindings unchanged. Verify an authenticated PDF download after Git deployment, including the original snapshot digest, repeated status, historical values, tenant denial and page rendering. Python worker redeployment and remote migrations are unnecessary for this update.
+
+
+The PDF update passed 24 hosted API/browser checks after Git deployment `ea7b731` reached READY. Independent PDF.js/Poppler readers confirmed original quantities/costs, Unicode, repeated review status and the complete 34-row source audit with thirty unknown inclusions. Historical PDF bytes remained identical after later price/method/profile revisions; outsider and anonymous downloads were denied. Font/permission notices are bundled as server assets and included as literal PDF catalog metadata. The dedicated Neon database and separate Python worker were unchanged.
