@@ -484,6 +484,40 @@ export function optimizationComparisonSheets(
       [r.id, "Request model version", r.modelVersion],
       [r.id, "Solver message", r.view?.message ?? null],
     );
+    if (r.view?.conflict) {
+      const c = r.view.conflict;
+      evidence.push(
+        [
+          r.id,
+          "Conflict search",
+          `${c.status}; ${c.termination}; ${c.checks}/${c.maxChecks} checks; tolerance ${c.tolerance}`,
+        ],
+        [
+          r.id,
+          "Fixed diagnostic background",
+          "Exact selected candidates, 100% total and 0–100% inclusions. Original limits are unchanged. No diagnostic allocation is exported.",
+        ],
+      );
+      for (const constraint of c.constraints)
+        constraints.push([
+          r.id,
+          `Conflict ${constraint.kind}`,
+          `${constraint.label} (${constraint.id}; ${constraint.unit})`,
+          constraint.ingredientId ??
+            constraint.ingredientIds?.join(", ") ??
+            null,
+          constraint.side === "min" ? constraint.value : null,
+          constraint.side === "max" ? constraint.value : null,
+          null,
+          c.status,
+          null,
+          constraint.evidence ??
+            constraint.origins
+              ?.map((o) => `${o.source}: ${o.percent}%`)
+              .join("; ") ??
+            null,
+        ]);
+    }
     for (const diagnostic of r.view?.diagnostics ?? [])
       evidence.push([r.id, diagnostic.kind, diagnostic.message]);
     for (const binding of r.view?.bindingConstraints ?? [])

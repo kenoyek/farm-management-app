@@ -2,6 +2,7 @@
 import type { OptimizationView } from "@/lib/optimization-history";
 import { nutrientLabels } from "@/lib/recipe-reports";
 import ProcessingGroups from "./processing-groups";
+import OptimizationConflict from "./optimization-conflict";
 
 const value = (n: number) => Number(n.toFixed(6)).toString();
 export default function OptimizationEvidence({
@@ -48,11 +49,18 @@ export default function OptimizationEvidence({
           </p>
         </div>
       )}
+      {view.conflict && <OptimizationConflict analysis={view.conflict} />}
+      {view.status === "infeasible" && !view.conflict && (
+        <p className="helper">
+          This historical run has no recorded conflict search. Its evidence has
+          not been reconstructed.
+        </p>
+      )}
       {view.effectiveBounds.length > 0 && (
         <>
           <h3>Effective ingredient bounds</h3>
           <div className="table-scroll">
-            <table>
+            <table aria-label="Effective ingredient bounds">
               <thead>
                 <tr>
                   <th>Ingredient / reference</th>
@@ -99,7 +107,7 @@ export default function OptimizationEvidence({
             necessary condition, not proof that all targets can be met together.
           </p>
           <div className="table-scroll">
-            <table>
+            <table aria-label="Individual nutrient ranges">
               <thead>
                 <tr>
                   <th>Nutrient / unit</th>

@@ -1,3 +1,8 @@
+import {
+  workerConflict,
+  describeConflict,
+  type ConflictRow,
+} from "./optimization-conflict";
 import { remoteWorker } from "./remote-worker";
 import Decimal from "decimal.js";
 import { z } from "zod";
@@ -86,16 +91,22 @@ export async function optimize(
     min: evidence.effectiveBounds[i].min,
     max: evidence.effectiveBounds[i].max,
   }));
-  if (evidence.diagnostics.length)
-    return {
-      status: "infeasible",
-      fractions: null,
-      objective: null,
-      solver: "constraint-precheck",
-      message: evidence.diagnostics.map((d) => d.message).join(" "),
-      ...evidence,
-    };
+  evidence.diagnosticModelVersion = 3;
+  const conflictRows: ConflictRow[] = [
+    ...nutrientKeys
+      .filter((n) => limits[n])
+      .map((n) => ({ kind: "nutrient" as const, nutrient: n, ...limits[n] })),
+    ...processingRules.map((r) => ({
+      kind: "processing" as const,
+      name: r.name,
+      ingredientIds: r.ingredientIds,
+      min: r.minPercent,
+      max: r.maxPercent,
+      source: r.source,
+    })),
+  ];
   const payload = {
+    explain: true,
     cost: selected.map((i) => Number(i.price)),
     bounds: lines.map((l) => [(l.min ?? 0) / 100, (l.max ?? 100) / 100]),
     constraints: [
@@ -128,9 +139,21 @@ export async function optimize(
       objective: z.number().finite().nullable(),
       solver: z.string().min(1),
       message: z.string(),
+      conflict: workerConflict.nullable(),
     })
     .strict()
     .parse(JSON.parse(raw));
+  if (solution.status !== "infeasible" && solution.conflict !== null)
+    throw Error("Unexpected conflict evidence for a non-infeasible model.");
+  const conflict = solution.conflict
+    ? describeConflict(
+        solution.conflict,
+        evidence.effectiveBounds,
+        conflictRows,
+      )
+    : null;
+  if (solution.status === "infeasible" && !conflict)
+    throw Error("Missing infeasibility conflict evidence.");
   if (solution.status !== "optimal") {
     if (solution.fractions !== null || solution.objective !== null)
       throw Error("Unexpected nonoptimal solver allocation.");
@@ -146,6 +169,7 @@ export async function optimize(
       fractions: null,
       objective: null,
       ...evidence,
+      conflict,
     };
   }
   if (
@@ -234,6 +258,7 @@ export async function optimize(
     fractions: solution.fractions,
     objective: solution.objective,
     ...evidence,
+    conflict: null,
     processingGroups,
     validation: {
       totalPercentError,

@@ -1,3 +1,4 @@
+import { conflictAnalysis } from "./optimization-conflict";
 import { z } from "zod";
 import { nutrientKeys } from "./feed";
 import { id } from "./validation";
@@ -35,6 +36,7 @@ const viewSchema = z.object({
     .regex(/^\d+(?:\.\d+)?$/)
     .nullable(),
   diagnosticModelVersion: z.number().optional(),
+  conflict: conflictAnalysis.nullable().optional(),
   processingGroups: z.array(processingGroup).default([]),
   effectiveBounds: z
     .array(

@@ -77,3 +77,6 @@ Optimizer comparisons use the existing `optimization_runs` member-read RLS in on
 
 
 Saved PDF exports reuse `loadRecipeReports` inside the existing RLS transaction before rendering. The same normalized snapshot and digest feed PDF/CSV/XLSX; no new data, grant or mutation is introduced. Bundled font files are traced into the app's server function. The Node PDF renderer does not read current ingredient prices, evaluate user HTML or call the remote worker. Process-local concurrent generation and bounded document limits supplement the existing per-user export limiter.
+
+
+Conflict diagnostics add metadata to immutable `optimization_runs.result` with request model 6/diagnostic model 3. The Node adapter maps bounded worker row/side indices to the exact original nutrient, processing and effective-bound identities; it validates response shape, uniqueness and completed-check counts. No diagnostic submodel allocation is stored. Existing same-tenant RLS/history/report queries expose recorded analysis to members/auditors without recomputing against current references. Legacy results remain unchanged; no migration or grant is required.

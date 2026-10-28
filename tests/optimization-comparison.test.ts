@@ -259,3 +259,56 @@ it("retains different reviewed group constraints and all four scenarios without 
   expect(unavailable.runs[1].costPerKg).toBe("180.0000");
   expect(unavailable.runs[1].deltaCostPerKg).toBeNull();
 });
+
+it("exports a full-size processing conflict as separate bounded Excel cells without losing member or source evidence", () => {
+  const a = fixture(),
+    b = fixture("b");
+  const ids = Array.from(
+      { length: 100 },
+      (_, i) => `00000000-0000-4000-8000-${String(i + 100).padStart(12, "0")}`,
+    ),
+    source = "x".repeat(2000);
+  b.result = {
+    status: "infeasible",
+    solver: "Synthetic stored outcome fixture",
+    message: "Synthetic conflict report fixture",
+    conflict: {
+      version: 1,
+      status: "irreducible",
+      termination: "complete",
+      checks: 2,
+      maxChecks: 48,
+      candidateCount: 1,
+      tolerance: 1e-7,
+      constraints: [
+        {
+          id: "row:0:min",
+          kind: "processing",
+          label: "Synthetic large group",
+          side: "min",
+          value: 10,
+          unit: "%",
+          ingredientIds: ids,
+          evidence: source,
+        },
+      ],
+    },
+  };
+  const sheets = optimizationComparisonSheets(
+    compareOptimizationRuns([a, b], 100),
+    "org",
+    "digest",
+  );
+  const row = sheets[3].rows.find((r) => r[1] === "Conflict processing")!;
+  expect(row[3]).toBe(ids.join(", "));
+  expect(row[9]).toBe(source);
+  expect(
+    sheets.every(
+      (s) =>
+        s.rows.length <= 2000 &&
+        s.rows.every((r) =>
+          r.every((c) => typeof c !== "string" || c.length <= 4000),
+        ),
+    ),
+  ).toBe(true);
+});

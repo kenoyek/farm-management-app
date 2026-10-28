@@ -105,3 +105,6 @@ Saved mixing PDFs are an app-only update using pinned JavaScript dependencies an
 
 
 The PDF update passed 24 hosted API/browser checks after Git deployment `ea7b731` reached READY. Independent PDF.js/Poppler readers confirmed original quantities/costs, Unicode, repeated review status and the complete 34-row source audit with thirty unknown inclusions. Historical PDF bytes remained identical after later price/method/profile revisions; outsider and anonymous downloads were denied. Font/permission notices are bundled as server assets and included as literal PDF catalog metadata. The dedicated Neon database and separate Python worker were unchanged.
+
+
+For conflict diagnostics, deploy the backward-compatible Python worker with the optional boolean `explain` flag **before pushing the app**. Old clients retain their original response shape and strict default bound protocol. New clients record conflict model 1, optimizer request model 6 and diagnostic model 3; the body/row/variable/memory/watchdog limits stay unchanged. Verify genuine irreducible and budget-exhausted hosted solves without returned counterfactual allocations, plus old-client compatibility, then publish the Git app update. No Neon migration or credential change is required.

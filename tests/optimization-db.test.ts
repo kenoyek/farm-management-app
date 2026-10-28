@@ -174,15 +174,15 @@ afterAll(async () => {
   await pool.end();
   await admin.end();
 });
-it("records real optimal and diagnostic-only infeasible runs with immutable model-5 evidence", async () => {
+it("records real optimal and diagnostic-only infeasible runs with immutable model-6 evidence", async () => {
   const detail = await (await get(owner, org, optimalRun)).json();
-  expect(detail.record.request.modelVersion).toBe(5);
+  expect(detail.record.request.modelVersion).toBe(6);
   expect(detail.record.request.profileSnapshot.id).toBe(profile);
   expect(detail.record.request.ingredientSnapshot).toHaveLength(2);
   expect(detail.view).toMatchObject({
     status: "optimal",
     costPerKg: "150.0000",
-    diagnosticModelVersion: 1,
+    diagnosticModelVersion: 3,
   });
   expect(detail.view.validation.totalPercentError).toBeLessThan(1e-6);
   const failure = await (await get(auditor, org, infeasibleRun)).json();
@@ -447,4 +447,43 @@ it("compares real bounded optima at a common batch and produces five literal-tex
     delta: "30000.0000",
     zeroFormulas: true,
   });
+});
+
+it("retains verified conflict evidence through history, auditor comparison exports and later reference revisions", async () => {
+  const detail = await (await get(auditor, org, infeasibleRun)).json();
+  expect(detail.record.result.conflict).toMatchObject({
+    status: "irreducible",
+    termination: "complete",
+    constraints: [
+      expect.objectContaining({
+        ingredientId: b,
+        value: 10,
+        origins: [{ source: "availability", percent: 10 }],
+      }),
+      expect.objectContaining({ kind: "nutrient", value: 20 }),
+    ],
+  });
+  expect(detail.view.conflict).toEqual(detail.record.result.conflict);
+  expect(detail.record.request.modelVersion).toBe(6);
+  const query = new URLSearchParams({
+    organizationId: org,
+    batchKg: "1000",
+    format: "csv",
+  });
+  for (const id of [optimalRun, infeasibleRun]) query.append("runId", id);
+  const response = (await feedApi(
+    new NextRequest(`http://localhost/api/optimization-runs/compare?${query}`),
+    { id: auditor },
+    "optimization-runs/compare",
+  ))!;
+  const csv = await response.text();
+  expect(csv).toContain("Conflict search");
+  expect(csv).toContain("irreducible");
+  expect(csv).toContain("availability");
+  expect(csv).toContain(b);
+  await expect(get(other, org, infeasibleRun)).rejects.toMatchObject({
+    status: 404,
+  });
+  const repeated = await (await get(owner, org, infeasibleRun)).json();
+  expect(repeated.record).toEqual(detail.record);
 });

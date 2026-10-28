@@ -507,7 +507,7 @@ export async function feedApi(
                 ingredientSnapshot: ingredients.filter((i) =>
                   input.lines.some((l) => l.ingredientId === i.id),
                 ),
-                modelVersion: 5,
+                modelVersion: 6,
                 nutrientRegistryVersion,
                 nutrientDefinitions,
               }),

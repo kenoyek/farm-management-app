@@ -151,7 +151,13 @@ test("explains infeasibility, preserves run evidence and restores scenarios as d
       live.getByRole("listitem").filter({ hasText: "protein:" }),
     ).toContainText("attainable maximum 14.000000");
     await expect(
-      live.getByRole("row").filter({ hasText: "Rich fixture" }),
+      live
+        .getByRole("table", {
+          name: "Effective ingredient bounds",
+          exact: true,
+        })
+        .getByRole("row")
+        .filter({ hasText: "Rich fixture" }),
     ).toContainText("availability: 10%");
     await live
       .getByRole("button", { name: "Open saved run", exact: true })
@@ -172,7 +178,25 @@ test("explains infeasibility, preserves run evidence and restores scenarios as d
     );
     expect(record.result.status).toBe("infeasible");
     expect(record.result.fractions).toBeNull();
-    expect(record.request.modelVersion).toBe(5);
+    expect(record.result.conflict.status).toBe("irreducible");
+    expect(record.result.conflict.constraints).toHaveLength(2);
+    const conflict = saved.getByRole("region", {
+      name: "Conflicting constraints",
+      exact: true,
+    });
+    await expect(
+      conflict.getByRole("heading", {
+        name: "Verified irreducible conflict",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(conflict).toContainText("availability: 10%");
+    await expect(conflict).toContainText("Crude protein (%)");
+    await expect(conflict).toContainText(
+      "all original limits remain unchanged",
+    );
+
+    expect(record.request.modelVersion).toBe(6);
     expect(record.request.lines[1].availableKg).toBe(10);
     expect(record.request.ingredientSnapshot).toHaveLength(2);
     page.once("dialog", (dialog) => void dialog.accept());

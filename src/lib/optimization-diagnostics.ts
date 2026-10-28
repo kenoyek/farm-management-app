@@ -1,3 +1,4 @@
+import type { ConflictAnalysis } from "./optimization-conflict";
 import {
   nutrientKeys,
   type Ingredient,
@@ -62,6 +63,7 @@ export type OptimizationResult = {
   reachability: Reachability[];
   diagnostics: Diagnostic[];
   runId?: string;
+  conflict?: ConflictAnalysis | null;
   processingGroups?: ProcessingCheck[];
 } & (
   | {

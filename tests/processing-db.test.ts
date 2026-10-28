@@ -282,7 +282,7 @@ it("blocks manual approval above a group cap and stores a genuine compliant opti
       ]),
     )
   ).rows[0];
-  expect(run.request.modelVersion).toBe(5);
+  expect(run.request.modelVersion).toBe(6);
   expect(run.request.profileSnapshot.processing_rules).toEqual([group()]);
 });
 it("validates direct SQL group insertion and forbids widening or changing reviewed historical rules", async () => {

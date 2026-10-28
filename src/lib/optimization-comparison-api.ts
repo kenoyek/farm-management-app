@@ -83,6 +83,18 @@ export async function optimizationComparisonApi(
     input.organizationId,
     digest,
   );
+  if (
+    format === "xlsx" &&
+    (sheets.some((s) => s.rows.length > 2000) ||
+      sheets.reduce(
+        (sum, s) => sum + s.rows.reduce((n, row) => n + row.length, 0),
+        0,
+      ) > 20000)
+  )
+    fail(
+      422,
+      "This comparison exceeds Excel report limits. Download CSV or JSON for the complete evidence.",
+    );
   const body =
     format === "csv"
       ? sheetsCsv(sheets)
