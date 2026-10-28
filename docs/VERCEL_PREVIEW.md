@@ -108,3 +108,6 @@ The PDF update passed 24 hosted API/browser checks after Git deployment `ea7b731
 
 
 For conflict diagnostics, deploy the backward-compatible Python worker with the optional boolean `explain` flag **before pushing the app**. Old clients retain their original response shape and strict default bound protocol. New clients record conflict model 1, optimizer request model 6 and diagnostic model 3; the body/row/variable/memory/watchdog limits stay unchanged. Verify genuine irreducible and budget-exhausted hosted solves without returned counterfactual allocations, plus old-client compatibility, then publish the Git app update. No Neon migration or credential change is required.
+
+
+The conflict update passed 26 hosted API/browser checks after worker-first publication and Git app deployment `84dafa1` reached READY. Direct worker validation additionally covered old-client compatibility, genuine irreducibility, a known optimum, bounded partial exhaustion and private source files. A real 61-candidate hosted app scenario displayed **Conflict search incomplete** after 48 checks without allocations. Independent reading of its five-sheet comparison workbook recovered the exact named constraints/status and blank infeasible costs. Original history and CSV bytes remained identical after price/profile revisions. Neon schema and runtime credentials were unchanged.
