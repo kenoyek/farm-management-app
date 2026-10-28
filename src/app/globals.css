@@ -1853,3 +1853,17 @@ textarea {
 .egg-quote {
   font-weight: 600;
 }
+.egg-inventory .table-scroll table {
+  min-width: 720px;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.egg-inventory table[aria-label="Egg stock balances"] {
+  min-width: 480px;
+}
+.egg-inventory table[aria-label="Egg sales by currency"] {
+  min-width: 360px;
+}
+.egg-inventory table[aria-label="Egg movement history"] {
+  min-width: 1050px;
+}

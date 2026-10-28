@@ -443,6 +443,15 @@ test("receives, grades and sells eggs, safely recovers a lost response, and reco
         exact: true,
       }),
     ).toBeDisabled();
+    const mainStore = (await snapshot()).batches.find(
+      (b: { id: string }) => b.id === batch,
+    ).store_id;
+    await region
+      .getByRole("combobox", { name: "Egg store", exact: true })
+      .selectOption(mainStore);
+    await region
+      .getByRole("button", { name: "Show all collections", exact: true })
+      .click();
     await page.setViewportSize({ width: 390, height: 844 });
     await page
       .getByRole("button", { name: "Open navigation", exact: true })
@@ -455,6 +464,17 @@ test("receives, grades and sells eggs, safely recovers a lost response, and reco
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
+    const firstHeader = await region
+      .getByRole("table", { name: "Egg collection reconciliation" })
+      .getByRole("columnheader")
+      .first()
+      .boundingBox();
+    expect(firstHeader!.width).toBeGreaterThan(40);
+    await page.screenshot({
+      path: ".local/eggs-mobile-verified.png",
+      fullPage: true,
+      animations: "disabled",
+    });
     expect(errors).toEqual([]);
     expect(
       (
