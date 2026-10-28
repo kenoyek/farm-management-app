@@ -1,3 +1,4 @@
+import { eggAdvancedPost } from "./egg-advanced-api";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -38,7 +39,7 @@ export async function eggInventoryApi(
           `SELECT jsonb_build_object('id',o.id,'name',o.name,'currency',o.currency,'timezone',o.timezone,'today',(now() AT TIME ZONE o.timezone)::date::text) AS organization,
     coalesce((SELECT jsonb_agg(to_jsonb(s) ORDER BY s.name,s.id) FROM (SELECT * FROM egg_stores WHERE organization_id=$1 ORDER BY name,id LIMIT 201) s),'[]'::jsonb) AS stores,
     coalesce((SELECT jsonb_agg(to_jsonb(b) ORDER BY b.received_on,b.id) FROM (SELECT * FROM egg_batches WHERE organization_id=$1 ORDER BY received_on,id LIMIT 10001) b),'[]'::jsonb) AS batches,
-    coalesce((SELECT jsonb_agg(to_jsonb(e)||jsonb_build_object('position',e.position::text,'amount',e.amount::text,'expected_position',e.expected_position::text) ORDER BY e.position) FROM (SELECT * FROM egg_events WHERE organization_id=$1 ORDER BY position LIMIT 10001) e),'[]'::jsonb) AS events,
+    coalesce((SELECT jsonb_agg(to_jsonb(e)||jsonb_build_object('position',e.position::text,'amount',e.amount::text,'expected_position',e.expected_position::text,'expected_return_position',e.expected_return_position::text) ORDER BY e.position) FROM (SELECT * FROM egg_events WHERE organization_id=$1 ORDER BY position LIMIT 10001) e),'[]'::jsonb) AS events,
     coalesce((SELECT jsonb_agg(to_jsonb(d) ORDER BY d.recorded_on,d.unit_id) FROM (SELECT r.*,r.feed_kg::text AS feed_text,u.name AS unit_name,u.farm_id FROM effective_daily_records r JOIN production_units u ON u.id=r.unit_id WHERE r.organization_id=$1 AND u.kind='layers' ORDER BY r.recorded_on,r.unit_id LIMIT 10001) d),'[]'::jsonb) AS collections
     FROM organizations o WHERE o.id=$1`,
           [org],
@@ -67,7 +68,7 @@ export async function eggInventoryApi(
         "The saved egg ledger is inconsistent and needs administrator review.",
       );
     }
-    const modelVersion = "whole-egg-ledger-v1",
+    const modelVersion = "whole-egg-ledger-transfers-returns-v2",
       digest = createHash("sha256")
         .update(JSON.stringify({ modelVersion, source, summary }))
         .digest("hex");
@@ -102,6 +103,13 @@ export async function eggInventoryApi(
     path === "eggs/stores"
       ? eggStoreInput.parse(await jsonBody(request))
       : eggEventInput.parse(await jsonBody(request));
+  if (
+    "kind" in input &&
+    (input.kind === "transfer" ||
+      input.kind === "return" ||
+      input.kind === "reversal")
+  )
+    return eggAdvancedPost(user, input);
   try {
     const result = await tenant(user.id, async (c) => {
       const org = (
@@ -200,7 +208,6 @@ export async function eggInventoryApi(
         grade = "ungraded",
         target: string | null = null,
         previous: string | null = null,
-        reverses: string | null = null,
         stockCount: number | null = null,
         expectedPosition: string | null = null,
         pricing: unknown = null,
@@ -297,7 +304,7 @@ export async function eggInventoryApi(
         if (input.kind === "opening") {
           const used = (
             await c.query(
-              "SELECT 1 FROM egg_events e JOIN egg_batches b ON b.id=e.batch_id WHERE b.store_id=$1 AND e.kind<>'opening' LIMIT 1",
+              "SELECT 1 FROM egg_events e JOIN egg_batches b ON (b.id=e.batch_id OR b.id=e.destination_batch_id) WHERE b.store_id=$1 AND e.kind<>'opening' LIMIT 1",
               [store.id],
             )
           ).rowCount;
@@ -336,7 +343,7 @@ export async function eggInventoryApi(
       if (!batch) throw Error("Batch creation failed.");
       const last = (
         await c.query(
-          "SELECT position::text,occurred_on::text FROM egg_events WHERE batch_id=$1 ORDER BY position DESC LIMIT 1",
+          "SELECT position::text,occurred_on::text FROM egg_events e WHERE batch_id=$1 OR destination_batch_id=$1 ORDER BY e.position DESC LIMIT 1",
           [batch.id],
         )
       ).rows[0];
@@ -404,41 +411,6 @@ export async function eggInventoryApi(
         customer = input.customer;
         reference = input.reference;
       }
-      if (input.kind === "reversal") {
-        const old: EggEvent | undefined = (
-          await c.query(
-            "SELECT *,amount::text FROM egg_events WHERE id=$1 AND batch_id=$2",
-            [input.reversesId, batch.id],
-          )
-        ).rows[0];
-        if (!old || !["sale", "grade", "loss", "count"].includes(old.kind))
-          fail(
-            400,
-            "Only a sale, grading, loss or count movement can be reversed in full. Collection changes use receipt reconciliation.",
-          );
-        if (
-          (
-            await c.query("SELECT id FROM egg_events WHERE reverses_id=$1", [
-              old.id,
-            ])
-          ).rowCount
-        )
-          fail(409, "This movement was already reversed.");
-        quantity = -old.quantity;
-        grade = old.grade;
-        target = old.target_grade;
-        reverses = old.id;
-        pricing = old.pricing;
-        amount =
-          old.amount === null
-            ? null
-            : old.amount.startsWith("-")
-              ? old.amount.slice(1)
-              : "-" + old.amount;
-        currency = old.currency;
-        customer = old.customer;
-        reference = old.reference;
-      }
       await c.query(
         `INSERT INTO egg_events(id,organization_id,batch_id,kind,occurred_on,grade,target_grade,quantity,previous_id,reverses_id,source_snapshot,source_quantity,stock_count,expected_position,pricing,amount,currency,customer,reference,reason,evidence,submission)
    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
@@ -452,7 +424,7 @@ export async function eggInventoryApi(
           target,
           quantity,
           previous,
-          reverses,
+          null,
           source === null ? null : JSON.stringify(source),
           sourceQuantity,
           stockCount,

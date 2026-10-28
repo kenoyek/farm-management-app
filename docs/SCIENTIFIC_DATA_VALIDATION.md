@@ -43,3 +43,6 @@ Layer recovery uses explicitly reviewed observations only. A physical opening ce
 
 
 Egg stock receives only explicitly confirmed actual gross less cracked counts, never forecasts. An opening-of-day physical stock baseline excludes earlier collections from being received again into that store. Grade labels do not establish weight thresholds, shelf life, fitness for consumption or food safety. Source corrections retain original snapshots and require explicit stock reconciliation; no missing loss, customer return or sale is inferred. A full sale reversal depends on the reviewer's evidence of complete return/cancelled dispatch. Recorded sales values preserve prices/currencies and do not establish cash collection or profitability.
+
+
+Completed egg-store transfers retain original batch lineage and grade; they do not certify food safety or change flock production. Return reviewers must verify physical goods and saleable condition explicitly. Non-saleable returns remain outside saleable stock without inferring disposal. Original-sale price categories and currency are preserved. Cumulative half-up monetary allocation for broken trays is a declared accounting precision convention, not an inferred market price, nutrition fact or cash refund.

@@ -1,4 +1,5 @@
 "use client";
+import EggReturnFields from "./egg-return-fields";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { api, ApiError, downloadJson, downloadCsv } from "@/lib/client";
 import { useDialog } from "@/lib/use-dialog";
@@ -7,6 +8,7 @@ import {
   eggEventInput,
   eggStoreInput,
   eggSale,
+  eggReversible,
   eggSheets,
   type EggSnapshot,
   type EggBatch,
@@ -222,7 +224,11 @@ export default function EggInventory({
     .map((b) => b.received_on)
     .sort()[0];
   const openingAllowed = !data?.events.some(
-    (e) => e.kind !== "opening" && batches.some((b) => b.id === e.batch_id),
+    (e) =>
+      e.kind !== "opening" &&
+      batches.some(
+        (b) => b.id === e.batch_id || b.id === e.destination_batch_id,
+      ),
   );
   const balance = (b: string, g: string) =>
     data?.summary.balances.find((x) => x.batchId === b && x.grade === g)
@@ -246,7 +252,9 @@ export default function EggInventory({
           ? data?.batches.find((b) => b.id === r?.batchId)
           : batch;
     const last = b
-      ? data?.events.filter((e) => e.batch_id === b.id).at(-1)
+      ? data?.events
+          .filter((e) => e.batch_id === b.id || e.destination_batch_id === b.id)
+          .at(-1)
       : undefined;
     setGrade(
       b
@@ -384,6 +392,29 @@ export default function EggInventory({
             customer: f.get("customer"),
             reference: f.get("reference"),
             pricing: pricing(f),
+          };
+          break;
+        case "transfer":
+          payload = {
+            ...common,
+            kind: "transfer",
+            grade,
+            quantity: Number(f.get("quantity")),
+            destinationStoreId: f.get("destinationStoreId"),
+            destinationBatchId: crypto.randomUUID(),
+            destinationBatchName: f.get("destinationBatchName"),
+          };
+          break;
+        case "return":
+          payload = {
+            ...common,
+            kind: "return",
+            saleId: f.get("saleId"),
+            trayEggs: Number(f.get("trayEggs")),
+            looseEggs: Number(f.get("looseEggs")),
+            restockEggs: Number(f.get("restockEggs")),
+            expectedReturnPosition: f.get("expectedReturnPosition"),
+            reference: f.get("returnReference"),
           };
           break;
         case "reversal":
@@ -723,11 +754,22 @@ export default function EggInventory({
                   </select>
                 </label>
                 <div className="production-toolbar">
-                  {(["grade", "sale", "loss", "count", "reversal"] as const)
+                  {(
+                    [
+                      "grade",
+                      "sale",
+                      "loss",
+                      "transfer",
+                      "return",
+                      "count",
+                      "reversal",
+                    ] as const
+                  )
                     .filter(
                       (k) =>
                         canPost &&
-                        (!["count", "reversal"].includes(k) || canReview),
+                        (!["count", "reversal", "return"].includes(k) ||
+                          canReview),
                     )
                     .map((k) => (
                       <button
@@ -740,6 +782,8 @@ export default function EggInventory({
                           {
                             grade: "Grade eggs",
                             sale: "Record egg sale",
+                            transfer: "Transfer eggs",
+                            return: "Review egg return",
                             loss: "Record egg loss",
                             count: "Review physical egg count",
                             reversal: "Reverse egg movement",
@@ -760,8 +804,9 @@ export default function EggInventory({
           <section className="panel egg-panel">
             <h2>Recorded egg sales · all stores</h2>
             <p>
-              Values retain their recorded currency and prices. Sales and full
-              returns are separate from payments, cash, costs and profitability.
+              Values retain their recorded currency and prices. Sales and
+              customer returns are separate from payments, cash, costs and
+              profitability.
             </p>
             {data.summary.sales.length ? (
               <div className="table-scroll">
@@ -787,6 +832,48 @@ export default function EggInventory({
             ) : (
               <p>No egg sales recorded.</p>
             )}
+          </section>
+          <section className="panel egg-panel">
+            <h2>Customer returns by original sale</h2>
+            <p>
+              Returned quantities and recorded credits include only active
+              returns. Non-saleable returns are excluded from stock. Cash
+              refunds remain separate.
+            </p>
+            <div className="table-scroll">
+              <table aria-label="Egg customer return reconciliation">
+                <thead>
+                  <tr>
+                    <th>Original sale</th>
+                    <th>Returned eggs</th>
+                    <th>Saleable restocked</th>
+                    <th>Non-saleable</th>
+                    <th>Original-currency credit</th>
+                    <th>Remaining eligible eggs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.summary.saleReturns.map((s) => (
+                    <tr key={s.saleId}>
+                      <td>
+                        {s.reference} · {s.customer}
+                      </td>
+                      <td>{s.returnedTrayEggs + s.returnedLooseEggs}</td>
+                      <td>{s.restockedEggs}</td>
+                      <td>{s.nonSaleableEggs}</td>
+                      <td>
+                        {s.currency} {s.creditedValue}
+                      </td>
+                      <td>
+                        {s.fullyReversed
+                          ? "Sale reversed"
+                          : s.remainingTrayEggs + s.remainingLooseEggs}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
           <section className="panel egg-panel">
             <details>
@@ -842,6 +929,22 @@ export default function EggInventory({
                           {e.created_by}
                           <br />
                           {e.created_at}
+                          {e.destination_batch_id && (
+                            <>
+                              <br />
+                              Destination batch: {e.destination_batch_id}
+                            </>
+                          )}
+                          {e.return_of_id && (
+                            <>
+                              <br />
+                              Original sale: {e.return_of_id}
+                              <br />
+                              {e.return_tray_eggs ?? 0} tray-priced /{" "}
+                              {e.return_loose_eggs ?? 0} individually priced
+                              eggs; {e.quantity} saleable stock movement.
+                            </>
+                          )}
                           {e.previous_id && (
                             <>Previous receipt: {e.previous_id}</>
                           )}
@@ -872,6 +975,8 @@ export default function EggInventory({
               <h2 id="egg-dialog-title">
                 {
                   {
+                    transfer: "Transfer eggs",
+                    return: "Review egg return",
                     store: "Add egg store",
                     opening: "Record opening egg stock",
                     receipt: "Receive or reconcile collection",
@@ -911,11 +1016,15 @@ export default function EggInventory({
             )}
             {modal.kind === "reversal" && (
               <p>
-                Only full reversals are supported. For a sale, confirm that all
-                eggs were physically returned or the dispatch was cancelled. The
-                reversal restores the whole quantity and reverses its recorded
-                sale value; it does not record a cash refund. Collection changes
-                use receipt reconciliation.
+                For a complete sale reversal, confirm that all eggs were
+                returned fit for sale or the dispatch was cancelled. Use the
+                customer-return workflow if any returned eggs are non-saleable.
+                The reversal restores the whole quantity and reverses its
+                recorded sale value; it does not record a cash refund.
+                Collection changes use receipt reconciliation. Transfers reverse
+                both stores together. Customer returns must be reversed in
+                latest-first order; sales with active partial returns use the
+                remaining-return workflow.
               </p>
             )}
             {modal.kind === "count" && (
@@ -1002,7 +1111,9 @@ export default function EggInventory({
                           />
                         </Field>
                       )}
-                      {!["receipt", "reversal"].includes(modal.kind) && (
+                      {!["receipt", "reversal", "return"].includes(
+                        modal.kind,
+                      ) && (
                         <Field label="Egg grade">
                           <select
                             value={grade}
@@ -1015,13 +1126,17 @@ export default function EggInventory({
                         </Field>
                       )}
                       {modal.batch &&
-                        !["receipt", "reversal"].includes(modal.kind) && (
+                        !["receipt", "reversal", "return"].includes(
+                          modal.kind,
+                        ) && (
                           <p>
                             Recorded {grade} stock:{" "}
                             {balance(modal.batch.id, grade)} whole eggs.
                           </p>
                         )}
-                      {["opening", "grade", "loss"].includes(modal.kind) && (
+                      {["opening", "grade", "loss", "transfer"].includes(
+                        modal.kind,
+                      ) && (
                         <NumberField
                           label="Whole egg quantity"
                           name="quantity"
@@ -1125,12 +1240,7 @@ export default function EggInventory({
                               .filter(
                                 (e) =>
                                   e.batch_id === modal.batch?.id &&
-                                  ["sale", "grade", "loss", "count"].includes(
-                                    e.kind,
-                                  ) &&
-                                  !data.events.some(
-                                    (r) => r.reverses_id === e.id,
-                                  ),
+                                  eggReversible(e, data.events),
                               )
                               .map((e) => (
                                 <option key={e.id} value={e.id}>
@@ -1140,6 +1250,54 @@ export default function EggInventory({
                               ))}
                           </select>
                         </Field>
+                      )}
+                      {modal.kind === "transfer" && (
+                        <>
+                          <label className="field">
+                            <span>Destination egg store</span>
+                            <select
+                              name="destinationStoreId"
+                              required
+                              defaultValue=""
+                            >
+                              <option value="">Choose another store</option>
+                              {data.stores
+                                .filter((d) => d.id !== modal.batch?.store_id)
+                                .map((d) => (
+                                  <option key={d.id} value={d.id}>
+                                    {d.name} ·{" "}
+                                    {farms.find((f) => f.id === d.farm_id)
+                                      ?.name ?? d.farm_id}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                          <Field label="Transferred batch name">
+                            <input
+                              name="destinationBatchName"
+                              required
+                              minLength={2}
+                              maxLength={100}
+                              defaultValue={`Transfer · ${modal.batch?.name}`.slice(
+                                0,
+                                100,
+                              )}
+                            />
+                          </Field>
+                          <p>
+                            Confirm a completed physical transfer. Both stores
+                            move the same whole eggs in one posting; grade and
+                            batch lineage are retained. This records no sale or
+                            financial value.
+                          </p>
+                        </>
+                      )}
+                      {modal.kind === "return" && (
+                        <EggReturnFields
+                          sales={data.summary.saleReturns.filter(
+                            (s) => s.batchId === modal.batch?.id,
+                          )}
+                        />
                       )}
                       <Field label="Egg posting reason">
                         <textarea
