@@ -279,7 +279,11 @@ export default function OptimizationComparisonPanel({
                       return (
                         <td key={r.id}>
                           {!a ? (
-                            "Not offered"
+                            r.originalBatchKg === null ? (
+                              "Unknown candidate set"
+                            ) : (
+                              "Not offered"
+                            )
                           ) : a.percent === null ? (
                             "No saved solution"
                           ) : (

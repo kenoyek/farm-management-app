@@ -96,3 +96,6 @@ The processing update passed all 25 hosted API/browser checks after Git deployme
 
 
 Optimizer scenario comparison is an app-only update. It reads existing immutable run snapshots through the current restricted Neon role, with no migration or Python protocol change. The existing authenticated Excel worker produces its five-sheet reports. Keep the current environment bindings and worker deployment; Git-triggered app deployment is sufficient. Verify selected-run tenant isolation, genuine optimal/infeasible comparisons, deterministic history, exports and browser controls on private labeled synthetic fixtures after deployment.
+
+
+The scenario-comparison update passed 30 hosted API/browser checks after Git deployment `710bb6e` reached READY, with an independent read of its genuine five-sheet Excel export. Comparisons remained byte-stable after new quotation/method/profile revisions, used historical snapshots and denied outsider access to both JSON and reports. Auditor browser controls, baseline switching, filtered selection and mobile width passed without client errors. No remote schema, environment binding or Python worker change was required.
