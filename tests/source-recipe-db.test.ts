@@ -1,11 +1,14 @@
 import { beforeAll, afterAll, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { admin } from "./admin-db";
 import { pool, tenant } from "../src/lib/db";
 import { feedApi } from "../src/lib/feed-api";
 import { loadRecipeReports } from "../src/lib/recipe-report-api";
 import { recipeSheets, sheetsCsv } from "../src/lib/recipe-reports";
+import { recipePdf } from "../src/lib/recipe-pdf";
+import { inspectPdf } from "./pdf-inspection";
 
 let owner: string,
   reviewer: string,
@@ -362,4 +365,33 @@ it("rejects forged cross-tenant source evidence, changed allocations and import 
       ]),
     ),
   ).rejects.toMatchObject({ code: "42501" });
+});
+
+it("prints every original source row and its thirty unknown inclusions without changing source or review evidence", async () => {
+  const report = (
+    await tenant(auditor, (c) => loadRecipeReports(c, org, [recipe]))
+  )[0];
+  const parsed = await inspectPdf(await recipePdf(report, org, "a".repeat(64)));
+  writeFileSync(".local/pdf-source-validation.txt", parsed.text, {
+    mode: 0o600,
+  });
+  writeFileSync(
+    ".local/pdf-source-values.json",
+    JSON.stringify(report.sourceRecipe?.rows.map((r) => r.fields.inclusion)),
+    { mode: 0o600 },
+  );
+  expect(parsed.text).toContain("Source recipe audit");
+  expect(parsed.text).toContain("Original source row 34");
+  expect(parsed.text).toContain("30");
+  expect(
+    parsed.text.replace(/\s+/g, " ").match(/Original inclusion Unknown/g),
+  ).toHaveLength(30);
+  expect(parsed.text).toContain("=Synthetic supplier");
+  expect(parsed.text).toContain("Synthetic COA 42");
+  expect(
+    parsed.pages.every((p) => p.text.includes("DRAFT — NOT APPROVED")),
+  ).toBe(true);
+  expect(
+    report.sourceRecipe?.rows.filter((r) => r.fields.inclusion.raw === null),
+  ).toHaveLength(30);
 });

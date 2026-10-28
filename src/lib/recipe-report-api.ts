@@ -1,3 +1,4 @@
+import { recipePdf } from "./recipe-pdf";
 import { remoteWorker } from "./remote-worker";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -149,7 +150,7 @@ export async function recipeReportApi(
   const recipeId = id.parse(match[1]);
   const org = id.parse(request.nextUrl.searchParams.get("organizationId"));
   const format = z
-    .enum(["csv", "xlsx"])
+    .enum(["csv", "xlsx", "pdf"])
     .parse(request.nextUrl.searchParams.get("format"));
   const [report] = await tenant(user.id, (c) =>
     loadRecipeReports(c, org, [recipeId]),
@@ -163,13 +164,20 @@ export async function recipeReportApi(
     "Content-Type":
       format === "csv"
         ? "text/csv; charset=utf-8"
-        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        : format === "pdf"
+          ? "application/pdf"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "Content-Disposition": `attachment; filename="farmstead-${recipeId}.${format}"`,
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
     "X-Recipe-Snapshot-SHA256": digest,
   };
   if (format === "csv") return new NextResponse(sheetsCsv(sheets), { headers });
+  if (format === "pdf")
+    return new NextResponse(
+      new Uint8Array(await recipePdf(report, org, digest)),
+      { headers },
+    );
   return new NextResponse(new Uint8Array(await workbookBytes(sheets)), {
     headers,
   });

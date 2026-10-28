@@ -99,3 +99,6 @@ Optimizer scenario comparison is an app-only update. It reads existing immutable
 
 
 The scenario-comparison update passed 30 hosted API/browser checks after Git deployment `710bb6e` reached READY, with an independent read of its genuine five-sheet Excel export. Comparisons remained byte-stable after new quotation/method/profile revisions, used historical snapshots and denied outsider access to both JSON and reports. Auditor browser controls, baseline switching, filtered selection and mobile width passed without client errors. No remote schema, environment binding or Python worker change was required.
+
+
+Saved mixing PDFs are an app-only update using pinned JavaScript dependencies and bundled licensed fonts. `next.config.ts` explicitly traces the font assets into the API function; no runtime download is made. Keep existing Neon/worker bindings unchanged. Verify an authenticated PDF download after Git deployment, including the original snapshot digest, repeated status, historical values, tenant denial and page rendering. Python worker redeployment and remote migrations are unnecessary for this update.

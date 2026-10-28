@@ -6,6 +6,7 @@ import { admin } from "./admin-db";
 import { pool, tenant } from "../src/lib/db";
 import { feedApi } from "../src/lib/feed-api";
 import { recipeReportApi } from "../src/lib/recipe-report-api";
+import { inspectPdf } from "./pdf-inspection";
 
 let owner: string,
   other: string,
@@ -236,7 +237,7 @@ it("denies outsider/cross-tenant/missing downloads and mixed-tenant comparisons 
       batchKg: 100,
     }),
   ).rejects.toMatchObject({ name: "ZodError" });
-  await expect(exportReport(owner, org, first, "pdf")).rejects.toMatchObject({
+  await expect(exportReport(owner, org, first, "html")).rejects.toMatchObject({
     name: "ZodError",
   });
 });
@@ -373,4 +374,45 @@ it("refuses incomplete historical evidence without modifying the saved record", 
       )
     ).rows[0].result,
   ).toEqual({});
+});
+
+it("exports immutable saved PDFs for owner and auditor with matching CSV evidence and tenant denial", async () => {
+  const response = (await exportReport(auditor, org, first, "pdf"))!;
+  expect(response.headers.get("content-type")).toBe("application/pdf");
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  expect(response.headers.get("content-disposition")).toContain(
+    `farmstead-${first}.pdf`,
+  );
+  const bytes = new Uint8Array(await response.arrayBuffer()),
+    parsed = await inspectPdf(bytes);
+  expect(parsed.text).toContain("APPROVED SAVED VERSION");
+  expect(parsed.text).toContain("100.000000");
+  expect(parsed.text).toContain("100.0000");
+  expect(parsed.text).not.toContain("900.0000");
+  const csv = (await exportReport(owner, org, first, "csv"))!;
+  expect(response.headers.get("x-recipe-snapshot-sha256")).toBe(
+    csv.headers.get("x-recipe-snapshot-sha256"),
+  );
+  expect(
+    new Uint8Array(
+      await (await exportReport(owner, org, first, "pdf"))!.arrayBuffer(),
+    ),
+  ).toEqual(bytes);
+  const draft = await inspectPdf(
+    new Uint8Array(
+      await (await exportReport(auditor, org, second, "pdf"))!.arrayBuffer(),
+    ),
+  );
+  expect(
+    draft.pages.every((p) => p.text.includes("DRAFT — NOT APPROVED")),
+  ).toBe(true);
+  for (const [actor, target, id] of [
+    [other, org, first],
+    [owner, foreignOrg, first],
+    [owner, org, foreignRecipe],
+  ] as [string, string, string][])
+    await expect(exportReport(actor, target, id, "pdf")).rejects.toMatchObject({
+      status: 404,
+    });
 });

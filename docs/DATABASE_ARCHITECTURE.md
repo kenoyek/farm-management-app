@@ -74,3 +74,6 @@ Migration 016 adds nullable paired `ingredients.processing_method/processing_evi
 
 
 Optimizer comparisons use the existing `optimization_runs` member-read RLS in one transaction. All two-to-four requested UUIDs must be visible within the declared organization before any result/export is returned. Normalization reads embedded historical references/specifications only and checks solution/reference identity and historical objective/cost consistency. POST JSON and GET CSV/XLSX share deterministic normalized evidence; an SHA-256 identifies that comparison. There is no persisted comparison table, write, new grant or migration. Baseline/batch changes never update runs, formulations or inventory.
+
+
+Saved PDF exports reuse `loadRecipeReports` inside the existing RLS transaction before rendering. The same normalized snapshot and digest feed PDF/CSV/XLSX; no new data, grant or mutation is introduced. Bundled font files are traced into the app's server function. The Node PDF renderer does not read current ingredient prices, evaluate user HTML or call the remote worker. Process-local concurrent generation and bounded document limits supplement the existing per-user export limiter.

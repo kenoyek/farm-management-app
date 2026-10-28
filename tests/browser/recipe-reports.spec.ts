@@ -205,6 +205,20 @@ test("compares historical saved recipes and downloads the exact saved mixing she
         .subarray(0, 2)
         .toString(),
     ).toBe("PK");
+    const pdfDownload = page.waitForEvent("download");
+    await page
+      .getByRole("button", {
+        name: `Download PDF for Alternative saved ${second.slice(0, 8)}`,
+        exact: true,
+      })
+      .click();
+    const pdf = await pdfDownload;
+    expect(pdf.suggestedFilename()).toBe(`farmstead-${second}.pdf`);
+    expect(
+      readFileSync((await pdf.path())!)
+        .subarray(0, 5)
+        .toString(),
+    ).toBe("%PDF-");
     await page
       .getByRole("combobox", { name: "Baseline recipe", exact: true })
       .selectOption(second);

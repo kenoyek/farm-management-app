@@ -3,6 +3,8 @@ const config: NextConfig = {
   poweredByHeader: false,
   outputFileTracingIncludes: {
     "/api/*": [
+      "./assets/fonts/*.ttf",
+      "./assets/fonts/LICENSE.txt",
       "./scripts/optimize.py",
       "./scripts/inspect_upload.py",
       "./scripts/export_recipe.py",

@@ -36,7 +36,7 @@ export default function RecipeLibrary({
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [error, setError] = useState("");
-  async function download(id: string, format: "csv" | "xlsx") {
+  async function download(id: string, format: "csv" | "xlsx" | "pdf") {
     setDownloading(id);
     setError("");
     try {
@@ -150,7 +150,7 @@ export default function RecipeLibrary({
                             >
                               Clone &amp; edit
                             </button>
-                            {(["xlsx", "csv"] as const).map((format) => (
+                            {(["pdf", "xlsx", "csv"] as const).map((format) => (
                               <button
                                 key={format}
                                 className="text-button"
