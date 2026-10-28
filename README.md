@@ -151,3 +151,10 @@ In **Production**, select a layer flock and use **Hen-day report and forecast re
 A calendar baseline keeps its original monthly opening-stock assumptions. Population alignment must be known and match the recorded flock at the scenario start; different/unknown populations and out-of-range dates withhold variances. Legacy 28-day baselines are retained as source evidence without calendar-day interpolation. The chart leaves gaps for missing observations. No forecast is posted to actual records or stock.
 
 Download **layer report JSON** to preserve the exact records/forecast, generation time and evidence SHA-256, or **CSV** for the daily report and source audit. Reports are read-only and refreshing includes later saved observations; they are not stored as new report versions in the app. Daily-record correction/census recovery, egg stock and sales remain separate workflows.
+
+
+## Review layer observations and recover flock counts
+
+In **Production → Layer record recovery**, owners, administrators and managers can review a complete daily replacement, fill a genuinely observed missing date, or enter a physical opening-flock census with dated evidence. Review the full values and acknowledge them before saving. Originals and earlier reviews remain in history; download the private recovery JSON for traceability. Other members/auditors can read history.
+
+Daily replacements change effective recorded totals without adding duplicate collections. A census restores population knowledge only from its date forward; earlier missing feed, eggs and deaths stay unknown. Count differences remain unattributed. Generate a fresh layer report to see reviewed values and source evidence. A failed save response offers a safe receipt retry; a stale review requires reloading history. This workflow posts no physical egg inventory, sale or financial event. Apply migration 017 before deploying this app update; the Python worker is unchanged.

@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  layerAdjustment,
+  effectiveLayerRecords,
+  layerPopulation,
+} from "./layer-recovery";
 import Decimal from "decimal.js";
 import { eggForecast } from "./forecast";
 import type { ReportSheet } from "./recipe-reports";
@@ -101,6 +106,7 @@ export const layerSource = z.object({
   unit,
   records: z.array(actual).max(10000),
   forecast: forecast.nullable(),
+  adjustments: z.array(layerAdjustment).max(10000).optional(),
 });
 export type LayerSource = z.infer<typeof layerSource>;
 const millis = 86400000;
@@ -169,8 +175,14 @@ export function layerReport(
   input = layerReportInput.parse(input);
   const source = layerSource.parse(raw),
     u = source.unit,
-    records = [...source.records].sort((a, b) =>
+    originals = [...source.records].sort((a, b) =>
       a.recorded_on.localeCompare(b.recorded_on),
+    ),
+    { records, censuses } = effectiveLayerRecords(
+      originals,
+      source.adjustments ?? [],
+      u,
+      input.to,
     ),
     f = source.forecast;
   const from = dateOrdinal(input.from),
@@ -191,8 +203,9 @@ export function layerReport(
       "Report source does not match the selected organization, flock or forecast.",
     );
   if (
+    new Set(originals.map((r) => r.recorded_on)).size !== originals.length ||
     new Set(records.map((r) => r.recorded_on)).size !== records.length ||
-    records.some(
+    [...originals, ...records].some(
       (r) =>
         r.unit_id !== u.id ||
         r.organization_id !== u.organization_id ||
@@ -202,32 +215,13 @@ export function layerReport(
   )
     throw Error("Invalid daily-record source.");
   if (f) verifyForecast(f);
-  const ordinals = records.map((r) => dateOrdinal(r.recorded_on)),
-    deathsPrefix = [0];
-  let expected = stocked,
-    firstGap: number | null = null,
-    recordedLive = u.opening_count;
-  for (const [index, r] of records.entries()) {
-    const ord = ordinals[index];
-    deathsPrefix.push(deathsPrefix[index] + r.mortality);
-    if (ord !== expected && firstGap === null) firstGap = expected;
-    expected = ord + 1;
-    recordedLive -= r.mortality;
-    if (recordedLive < 0)
-      throw Error("Recorded mortality exceeds the stocked flock.");
-  }
-  if (expected <= to && firstGap === null) firstGap = expected;
-  const openingAt = (ord: number) => {
-    if (ord < stocked || (firstGap !== null && ord > firstGap)) return null;
-    let lo = 0,
-      hi = ordinals.length;
-    while (lo < hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (ordinals[mid] < ord) lo = mid + 1;
-      else hi = mid;
-    }
-    return u.opening_count - deathsPrefix[lo];
-  };
+  const { openingAt, firstGap } = layerPopulation(
+    records,
+    censuses,
+    u.stocked_on,
+    u.opening_count,
+    input.to,
+  );
   const calendar = !!f && f.result.modelVersion === "opening-stock-calendar-v1",
     anchor = f ? f.input.startMonth + "-01" : null;
   const anchorOpening =
@@ -336,6 +330,11 @@ export function layerReport(
       }
     : null;
   const issues = [
+    ...(source.adjustments?.length
+      ? [
+          "This snapshot applies reviewed daily replacements and/or opening censuses. Original entries and every review remain in the source evidence.",
+        ]
+      : []),
     ...(henDays === 0
       ? [
           "The window has no positive hen-days; a hen-day percentage is undefined.",
@@ -343,7 +342,7 @@ export function layerReport(
       : []),
     ...(firstGap !== null
       ? [
-          `Missing daily history begins ${dateString(firstGap)}. Later flock denominators remain unknown.`,
+          `Missing daily history begins ${dateString(firstGap)}. Later flock denominators require complete history or an explicit opening census.`,
         ]
       : []),
     ...(!complete
@@ -363,7 +362,9 @@ export function layerReport(
     ...rows.flatMap((r) => r.issues.map((s) => r.date + ": " + s)),
   ];
   return {
-    modelVersion: "layer-hen-day-opening-v1",
+    modelVersion: source.adjustments?.length
+      ? "layer-hen-day-opening-census-v2"
+      : "layer-hen-day-opening-v1",
     input,
     timezone: source.timezone,
     unit: {
@@ -373,7 +374,7 @@ export function layerReport(
       openingCount: u.opening_count,
     },
     basis:
-      "Opening-of-day hens before recorded same-day deaths. Death times are not supplied; no within-day averaging is inferred. The stocked layer count is treated as hens without a sex or laying-age adjustment.",
+      "Opening-of-day hens before recorded same-day deaths. Death times are not supplied; no within-day averaging is inferred. The stocked layer count is treated as hens without a sex or laying-age adjustment. Reviewed daily replacements supply full values. An explicit opening census anchors its date forward only; earlier missing observations stay unknown.",
     scope:
       "Recorded observations and the selected original forecast stay separate. No stock, sale or financial event is posted.",
     coverage: {
@@ -589,5 +590,49 @@ export function layerReportSheets(
         ]),
       ],
     },
+    ...(source.adjustments?.length
+      ? [
+          {
+            name: "Recovery source",
+            headerRows: [1],
+            rows: [
+              [
+                "Review UUID",
+                "Kind",
+                "Date",
+                "Previous review",
+                "Original record",
+                "Deaths",
+                "Eggs",
+                "Cracked",
+                "Feed kg",
+                "Opening hens",
+                "Notes",
+                "Reason",
+                "Evidence",
+                "Reviewer UUID",
+                "Reviewed at",
+              ],
+              ...source.adjustments.map((a) => [
+                a.id,
+                a.kind,
+                a.observed_on,
+                a.previous_id,
+                a.base_record_id,
+                a.mortality,
+                a.eggs,
+                a.cracked,
+                a.feed_kg,
+                a.opening_hens,
+                a.notes,
+                a.reason,
+                a.evidence,
+                a.created_by,
+                a.created_at,
+              ]),
+            ],
+          },
+        ]
+      : []),
   ];
 }

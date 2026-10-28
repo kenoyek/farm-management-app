@@ -1799,3 +1799,22 @@ textarea {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+.layer-recovery {
+  padding: 24px;
+  overflow-wrap: anywhere;
+}
+.layer-recovery fieldset {
+  min-width: 0;
+}
+.layer-recovery input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+  margin-right: 8px;
+}
+.layer-recovery details {
+  margin-top: 18px;
+}
+.layer-recovery .helper {
+  padding: 0;
+}

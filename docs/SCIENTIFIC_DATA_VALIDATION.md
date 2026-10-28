@@ -37,3 +37,6 @@ An irreducible conflict is numerical evidence about the exact selected candidate
 
 
 Layer hen-day reporting explicitly uses opening-of-day hens before same-day deaths; actual death times and sex/laying-age adjustments are not supplied. A missing prior observation makes later denominators unknown rather than assuming survival. Gross hen-day output divides summed gross eggs by summed known hen-days, with zero denominators and inconsistent zero-flock collections withheld. Calendar forecast comparisons retain original opening-stock assumptions and require exact known opening-population alignment at the scenario start; 28-day scenarios are not stretched onto calendar months. Forecast mortality remains an assumption, never an actual death or stock event.
+
+
+Layer recovery uses explicitly reviewed observations only. A physical opening census is an actual count at the beginning of that date, before same-day deaths. It anchors future hen-day denominators after a gap but supplies no missing egg/feed/death values and explains no discrepancy as mortality, transfer or purchase. Full daily replacements retain original source evidence and never silently reinterpret a forecast as actual production. Historical source exports retain all reviews; census-segment mortality checks are consistency gates, not validation of observation accuracy.

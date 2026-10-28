@@ -223,7 +223,7 @@ test("register, create organization and farm, reload persistence, mobile navigat
     await expect(
       page
         .locator(".stat")
-        .filter({ hasText: "Active birds" })
+        .filter({ hasText: "Recorded bird balance" })
         .getByText("100", { exact: true }),
     ).toBeVisible();
     await expect(

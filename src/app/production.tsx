@@ -1,5 +1,6 @@
 "use client";
 import { useDialog } from "@/lib/use-dialog";
+import LayerRecovery from "./layer-recovery";
 import LayerReporting from "./layer-report";
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus, ClipboardList, Download, Activity } from "lucide-react";
@@ -13,6 +14,7 @@ type Unit = {
   stocked_on: string;
   opening_count: number;
   initial_weight_g: string;
+  recorded_balance: string;
 };
 type RecordRow = {
   id: string;
@@ -31,6 +33,7 @@ type RecordRow = {
     ammonia: number | null;
   } | null;
   notes: string;
+  adjustment_id: string | null;
 };
 type Farm = { id: string; name: string };
 export default function Production({
@@ -49,7 +52,9 @@ export default function Production({
     [newKind, setNewKind] = useState("layers"),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [reportRevision, setReportRevision] = useState(0),
+    [recoveryRevision, setRecoveryRevision] = useState(0);
   useEffect(() => {
     let active = true;
     void api<{ units: Unit[]; records: RecordRow[] }>(
@@ -83,7 +88,7 @@ export default function Production({
   const unit = units.find((u) => u.id === unitId),
     rows = records.filter((r) => r.unit_id === unitId),
     mortality = rows.reduce((s, r) => s + r.mortality, 0),
-    live = (unit?.opening_count ?? 0) - mortality,
+    live = unit ? Number(unit.recorded_balance) : 0,
     feed = rows.reduce((s, r) => s + Number(r.feed_kg), 0),
     eggs = rows.reduce((s, r) => s + r.eggs - r.cracked, 0),
     latestSample = rows.filter((r) => r.average_weight_g !== null).at(-1),
@@ -147,6 +152,7 @@ export default function Production({
           notes: String(f.get("notes") ?? ""),
         });
         await refresh();
+        setRecoveryRevision((r) => r + 1);
         setNotice("Daily record saved. Stock and production totals updated.");
       }
       setModal(null);
@@ -295,8 +301,20 @@ export default function Production({
             </div>
           )}
           {unit.kind === "layers" && (
+            <LayerRecovery
+              key={`${organizationId}:${unit.id}:${recoveryRevision}`}
+              organizationId={organizationId}
+              unitId={unit.id}
+              canReview={canStock}
+              onSaved={async () => {
+                await refresh();
+                setReportRevision((r) => r + 1);
+              }}
+            />
+          )}
+          {unit.kind === "layers" && (
             <LayerReporting
-              key={`${organizationId}:${unit.id}:${rows.at(-1)?.id ?? "none"}`}
+              key={`${organizationId}:${unit.id}:${rows.at(-1)?.id ?? "none"}:${reportRevision}`}
               organizationId={organizationId}
               unit={unit}
               lastDate={rows.at(-1)?.recorded_on ?? unit.stocked_on}
@@ -383,7 +401,15 @@ export default function Production({
                               : "Not measured"}
                           </td>
                         )}
-                        <td>{r.notes || "—"}</td>
+                        <td>
+                          {r.notes || "—"}
+                          {r.adjustment_id && (
+                            <span className="helper">
+                              {" "}
+                              · reviewed replacement
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -394,15 +420,15 @@ export default function Production({
                 <h3>Your first daily record</h3>
                 <p>
                   Track what happened today. Future dates and mortality above
-                  the live stock are rejected.
+                  the recorded population balance are rejected.
                 </p>
               </div>
             )}
             <p className="helper">
               Records are append-only, one per unit per day, in date order.
-              Enter older records first. No forecasts are posted here. Record
-              corrections, transfers and partial harvests require a later
-              reconciliation workflow.
+              Enter older records first. No forecasts are posted here. Layer
+              corrections and missed dates use reviewed recovery above.
+              Transfers and partial harvests require a later workflow.
             </p>
           </section>
         </>

@@ -1,3 +1,4 @@
+import { layerRecoveryApi } from "./layer-recovery-api";
 import { layerReportApi } from "./layer-report-api";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -43,6 +44,8 @@ export async function productionApi(
   user: { id: string },
   path: string,
 ) {
+  const recovery = await layerRecoveryApi(request, user, path);
+  if (recovery) return recovery;
   const report = await layerReportApi(request, user, path);
   if (report) return report;
   const method = request.method;
@@ -110,13 +113,13 @@ export async function productionApi(
       await tenant(user.id, async (c) => ({
         units: (
           await c.query(
-            "SELECT id,organization_id,farm_id,name,kind,stocked_on::text,opening_count,initial_weight_g,created_at FROM production_units WHERE organization_id=$1 ORDER BY created_at DESC",
+            "SELECT id,organization_id,farm_id,name,kind,stocked_on::text,opening_count,initial_weight_g,created_at,(SELECT recorded_balance FROM production_population_balances b WHERE b.id=production_units.id) AS recorded_balance FROM production_units WHERE organization_id=$1 ORDER BY created_at DESC",
             [org],
           )
         ).rows,
         records: (
           await c.query(
-            "SELECT id,organization_id,unit_id,recorded_on::text,mortality,eggs,cracked,feed_kg,average_weight_g,sample_size,water_quality,notes,created_at FROM daily_records WHERE organization_id=$1 ORDER BY recorded_on,id",
+            "SELECT id,organization_id,unit_id,recorded_on::text,mortality,eggs,cracked,feed_kg,average_weight_g,sample_size,water_quality,notes,created_at,adjustment_id,base_record_id FROM effective_daily_records WHERE organization_id=$1 ORDER BY recorded_on,id",
             [org],
           )
         ).rows,

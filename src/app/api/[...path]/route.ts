@@ -177,10 +177,10 @@ async function handler(request: NextRequest) {
           const summary = (
             await c.query(
               `WITH unit_totals AS (
- SELECT u.kind,u.opening_count-coalesce(sum(r.mortality),0) AS live,
+ SELECT u.kind,(SELECT recorded_balance FROM production_population_balances b WHERE b.id=u.id) AS live,
  coalesce(sum(r.feed_kg),0) AS feed,coalesce(sum(r.eggs-r.cracked),0) AS eggs,
- coalesce((SELECT average_weight_g FROM daily_records d WHERE d.unit_id=u.id AND d.average_weight_g IS NOT NULL ORDER BY recorded_on DESC LIMIT 1),u.initial_weight_g) AS weight
- FROM production_units u LEFT JOIN daily_records r ON r.unit_id=u.id
+ coalesce((SELECT average_weight_g FROM effective_daily_records d WHERE d.unit_id=u.id AND d.average_weight_g IS NOT NULL ORDER BY recorded_on DESC LIMIT 1),u.initial_weight_g) AS weight
+ FROM production_units u LEFT JOIN effective_daily_records r ON r.unit_id=u.id
  WHERE u.organization_id=$1 GROUP BY u.id
  ) SELECT coalesce(sum(live) FILTER(WHERE kind<>'catfish'),0)::int AS birds,
  coalesce(sum(live) FILTER(WHERE kind='catfish'),0)::int AS fish,

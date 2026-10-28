@@ -16,7 +16,6 @@ test("reports weighted hen-days, preserves unknown dates and reconciles an expli
       connectionString: `postgresql://postgres:${secret}@127.0.0.1:54329/farmstead`,
     });
   const { createSession, cookieName } = await import("../../src/lib/auth");
-  const { pool } = await import("../../src/lib/db");
   let owner = "",
     org = "";
   try {
@@ -228,6 +227,6 @@ test("reports weighted hen-days, preserves unknown dates and reconciles an expli
     if (org) await db.query("DELETE FROM organizations WHERE id=$1", [org]);
     if (owner) await db.query("DELETE FROM users WHERE id=$1", [owner]);
     await db.end();
-    await pool.end();
+    // The runtime pool is shared by browser fixtures and permits exit on idle.
   }
 });

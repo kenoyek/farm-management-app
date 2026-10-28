@@ -41,6 +41,8 @@ export async function layerReportApi(
         `SELECT o.timezone,to_jsonb(u) AS unit,
    coalesce((SELECT jsonb_agg(to_jsonb(d) || jsonb_build_object('feed_kg',d.feed_kg::text) ORDER BY d.recorded_on,d.id)
     FROM (SELECT * FROM daily_records WHERE organization_id=$1 AND unit_id=$2 AND recorded_on<=$3 ORDER BY recorded_on,id LIMIT 10001) d),'[]'::jsonb) AS records,
+   coalesce((SELECT jsonb_agg(to_jsonb(a)||jsonb_build_object('feed_kg',a.feed_kg::text) ORDER BY a.created_at,a.id) FROM
+    (SELECT * FROM layer_adjustments WHERE organization_id=$1 AND unit_id=$2 AND observed_on<=$3 ORDER BY created_at,id LIMIT 10001) a),'[]'::jsonb) AS adjustments,
    (SELECT to_jsonb(f) FROM forecasts f WHERE f.organization_id=$1 AND f.id=$4) AS forecast
    FROM production_units u JOIN organizations o ON o.id=u.organization_id WHERE u.organization_id=$1 AND u.id=$2`,
         [input.organizationId, input.unitId, input.to, input.forecastId],
@@ -50,6 +52,7 @@ export async function layerReportApi(
       fail(404, "Flock or saved forecast not found.");
     if (row.unit.kind !== "layers")
       fail(422, "Choose a layer flock for hen-day reporting.");
+    if (!row.adjustments.length) delete row.adjustments;
     return row;
   });
   if (Buffer.byteLength(JSON.stringify(raw)) > 1024 * 1024)

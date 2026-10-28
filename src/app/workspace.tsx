@@ -532,9 +532,9 @@ export default function Workspace() {
                   <section className="stats-grid">
                     {[
                       {
-                        label: "Active birds",
+                        label: "Recorded bird balance",
                         value: data?.summary?.birds.toLocaleString() ?? 0,
-                        desc: "Stocked population less recorded mortality",
+                        desc: "Latest opening count less recorded mortality; gaps may hide losses",
                         icon: Leaf,
                       },
                       {
