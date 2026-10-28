@@ -135,3 +135,6 @@ Migration 019 and restricted runtime/tenant checks succeeded. Git app deployment
 
 
 For broiler lifecycle, apply additive migration 020 to the dedicated preview database before deploying the app. It preserves existing layer/egg/catfish evidence and adds restricted, immutable broiler records plus shared stock guards. The Python worker and environment secrets do not change. Verify live treatment holds, paired daily/withdrawal balances, receipt retries, original-price live harvests, private evidence downloads and responsive browser behavior using explicitly synthetic private data.
+
+
+Broiler lifecycle hosted evidence: migration 020 and restricted-role checks passed before deployment. The feature and complete-source CSV correction reached READY at the stable URL; 32 hosted API/Chromium checks plus independent Decimal/CSV/SHA-256 reconciliation passed. The synthetic batch ended with 87 recorded birds (100 opening, one daily death, two culls, ten harvested). Original NGN price evidence remained unchanged after USD settings; active values are not cash/profit. All fixtures are labeled and private. The Python worker and secrets were unchanged.
