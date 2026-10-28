@@ -114,3 +114,6 @@ The conflict update passed 26 hosted API/browser checks after worker-first publi
 
 
 Layer hen-day reporting is an app-only update reading existing production/forecast tables. No Neon migration, worker deployment or credential change is required. Verify actual zero versus missing dates, weighted rates, calendar/legacy/misaligned baselines, source exports, auditor access and tenant isolation using clearly labeled private synthetic fixtures. Reports never post operational events or create saved report rows.
+
+
+The layer report update passed 28 hosted API/browser checks after Git deployment `c366948` reached READY. Independent Decimal/CSV reading confirmed 296 hen-days, the weighted rate, exact feed/trays, explicit zero and leap-year baseline variance. Missing/unaligned/28-day comparisons were withheld appropriately; historical hashes and CSV bytes remained unchanged after later observations. Auditor controls/downloads, tenant isolation and mobile rendering passed without client errors. Neon schema, credentials and the separate worker were unchanged.
