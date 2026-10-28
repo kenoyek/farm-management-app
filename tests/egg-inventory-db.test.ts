@@ -451,6 +451,23 @@ it("records one exact tray-and-loose sale with historical prices and a unique bu
       pricing: { mode: "per-egg", eggs: 1, pricePerEgg: "1" },
     }),
   ).rejects.toMatchObject({ status: 409 });
+  await expect(
+    event({
+      kind: "sale",
+      grade: "large",
+      currency: "NGN",
+      customer: "Synthetic exact duplicate",
+      reference: "SYNTHETIC-TRAY-001",
+      pricing: {
+        mode: "tray-and-loose",
+        trays: 2,
+        looseEggs: 2,
+        traySize: 30,
+        pricePerTray: "4500.125",
+        pricePerEgg: "155.25",
+      },
+    }),
+  ).rejects.toMatchObject({ status: 409 });
 });
 it("serializes competing sales and rejects negative stock without losing the losing audit transaction", async () => {
   openingBatch = await opening(10);

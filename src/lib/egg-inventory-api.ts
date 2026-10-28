@@ -374,6 +374,18 @@ export async function eggInventoryApi(
         expectedPosition = input.expectedPosition;
       }
       if (input.kind === "sale") {
+        if (
+          (
+            await c.query(
+              "SELECT id FROM egg_events WHERE organization_id=$1 AND kind='sale' AND reference=$2",
+              [input.organizationId, input.reference],
+            )
+          ).rowCount
+        )
+          fail(
+            409,
+            "This sale reference already has a recorded movement. Reload its history before posting again.",
+          );
         if (input.currency !== org.currency)
           fail(
             409,
