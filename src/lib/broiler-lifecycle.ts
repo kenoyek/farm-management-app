@@ -290,7 +290,15 @@ export function broilerCsv(s: BroilerSnapshot) {
     ],
     [],
     ["Original daily records"],
-    ["ID", "Date", "Deaths", "Feed kg", "Sample average g", "Sample size"],
+    [
+      "ID",
+      "Date",
+      "Deaths",
+      "Feed kg",
+      "Sample average g",
+      "Sample size",
+      "Complete original source",
+    ],
     ...s.records.map((r) => [
       r.id,
       r.recorded_on,

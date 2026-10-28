@@ -202,3 +202,44 @@ it("requires whole birds, measured harvest weight, explicit price state and reje
   };
   expect(broilerCsv(snapshot)).toContain("'=Synthetic broilers");
 });
+it("labels and round-trips every CSV source cell including literal notes and complete evidence", () => {
+  const record = {
+    ...daily("2024-02-01"),
+    notes: 'Synthetic source "note", with a comma',
+    created_at: "2024-02-01T12:00:00Z",
+  };
+  const s = source({ records: [record] });
+  const csv = broilerCsv({
+    ...s,
+    modelVersion: "v1",
+    summary: broilerSummary(s),
+    evidenceSha256: "source-digest",
+  });
+  // Independent CSV reader: embedded escaped quotes remain literal.
+  const rows = csv.split("\r\n").map((line) => {
+    const values: string[] = [];
+    let value = "",
+      quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (quoted && line[i + 1] === '"') {
+          value += '"';
+          i++;
+        } else quoted = !quoted;
+      } else if (ch === "," && !quoted) {
+        values.push(value);
+        value = "";
+      } else value += ch;
+    }
+    values.push(value);
+    return values;
+  });
+  const i = rows.findIndex((r) => r[0] === "Original daily records");
+  expect(rows[i + 1]).toHaveLength(rows[i + 2].length);
+  expect(rows[i + 1].at(-1)).toBe("Complete original source");
+  expect(JSON.parse(rows[i + 2].at(-1)!)).toEqual(record);
+  expect(
+    JSON.parse(rows.find((r) => r[0] === "Original unit source")![1]),
+  ).toEqual(unit);
+});
