@@ -1,3 +1,4 @@
+import { eggInventoryApi } from "./egg-inventory-api";
 import { layerRecoveryApi } from "./layer-recovery-api";
 import { layerReportApi } from "./layer-report-api";
 import { NextRequest, NextResponse } from "next/server";
@@ -44,6 +45,8 @@ export async function productionApi(
   user: { id: string },
   path: string,
 ) {
+  const eggs = await eggInventoryApi(request, user, path);
+  if (eggs) return eggs;
   const recovery = await layerRecoveryApi(request, user, path);
   if (recovery) return recovery;
   const report = await layerReportApi(request, user, path);

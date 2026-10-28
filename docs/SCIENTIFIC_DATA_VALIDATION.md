@@ -40,3 +40,6 @@ Layer hen-day reporting explicitly uses opening-of-day hens before same-day deat
 
 
 Layer recovery uses explicitly reviewed observations only. A physical opening census is an actual count at the beginning of that date, before same-day deaths. It anchors future hen-day denominators after a gap but supplies no missing egg/feed/death values and explains no discrepancy as mortality, transfer or purchase. Full daily replacements retain original source evidence and never silently reinterpret a forecast as actual production. Historical source exports retain all reviews; census-segment mortality checks are consistency gates, not validation of observation accuracy.
+
+
+Egg stock receives only explicitly confirmed actual gross less cracked counts, never forecasts. An opening-of-day physical stock baseline excludes earlier collections from being received again into that store. Grade labels do not establish weight thresholds, shelf life, fitness for consumption or food safety. Source corrections retain original snapshots and require explicit stock reconciliation; no missing loss, customer return or sale is inferred. A full sale reversal depends on the reviewer's evidence of complete return/cancelled dispatch. Recorded sales values preserve prices/currencies and do not establish cash collection or profitability.

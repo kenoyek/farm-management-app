@@ -1,6 +1,7 @@
 "use client";
 import { useDialog } from "@/lib/use-dialog";
 import Team from "./team";
+import EggInventory from "./egg-inventory";
 import Production from "./production";
 import Projections from "./projections";
 import FeedStudio from "./feed-studio";
@@ -329,6 +330,7 @@ export default function Workspace() {
             [LayoutDashboard, "Overview"],
             [Warehouse, "My farms"],
             [ClipboardList, "Production"],
+            [Warehouse, "Egg inventory"],
             [FlaskConical, "Feed studio"],
             [ChartNoAxesCombined, "Projections"],
             [Settings, "Settings"],
@@ -444,9 +446,11 @@ export default function Workspace() {
                       ? "Your workspace, your way."
                       : view === "Production"
                         ? "A record of every day."
-                        : view === "Feed studio"
-                          ? "Better feed starts here."
-                          : "Plan the season ahead."}
+                        : view === "Egg inventory"
+                          ? "Every egg accounted for."
+                          : view === "Feed studio"
+                            ? "Better feed starts here."
+                            : "Plan the season ahead."}
               </h1>
               <p className="muted">
                 {view === "Overview"
@@ -457,9 +461,11 @@ export default function Workspace() {
                       ? "Organization details, access and account information."
                       : view === "Production"
                         ? "Track your flocks, batches and ponds with real daily records."
-                        : view === "Feed studio"
-                          ? "Build a recipe with transparent nutrition and cost calculations."
-                          : "Explore feed needs and egg production with explicit assumptions."}
+                        : view === "Egg inventory"
+                          ? "Receive collections, reconcile physical stock and record egg sales."
+                          : view === "Feed studio"
+                            ? "Build a recipe with transparent nutrition and cost calculations."
+                            : "Explore feed needs and egg production with explicit assumptions."}
               </p>
             </div>
             {(view === "Overview" || view === "My farms") && (
@@ -811,6 +817,15 @@ export default function Workspace() {
                   key={orgId}
                   organizationId={orgId}
                   role={org.role}
+                  farms={data?.farms ?? []}
+                />
+              )}
+              {view === "Egg inventory" && (
+                <EggInventory
+                  key={`${orgId}:${user.email}`}
+                  organizationId={orgId}
+                  role={org.role}
+                  actor={user.email}
                   farms={data?.farms ?? []}
                 />
               )}

@@ -1818,3 +1818,38 @@ textarea {
 .layer-recovery .helper {
   padding: 0;
 }
+
+.egg-panel {
+  padding: 24px;
+  overflow-wrap: anywhere;
+}
+.egg-inventory .production-toolbar {
+  flex-wrap: wrap;
+}
+.egg-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.egg-confirm {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+  margin: 18px 0;
+}
+.egg-confirm input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+  margin-top: 3px;
+}
+.egg-panel .helper {
+  padding: 0;
+}
+.egg-modal > p {
+  margin: 12px 24px;
+  overflow-wrap: anywhere;
+}
+.egg-quote {
+  font-weight: 600;
+}
