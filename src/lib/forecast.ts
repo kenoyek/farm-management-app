@@ -112,8 +112,8 @@ export function eggForecast(
   });
   return {
     modelVersion: legacy28
-      ? "opening-stock-28day-v1"
-      : "opening-stock-calendar-v1",
+      ? ("opening-stock-28day-v1" as const)
+      : ("opening-stock-calendar-v1" as const),
     rows,
     eggs: eggs.toNumber(),
     saleable: saleable.toNumber(),

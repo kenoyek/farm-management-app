@@ -111,3 +111,6 @@ For conflict diagnostics, deploy the backward-compatible Python worker with the 
 
 
 The conflict update passed 26 hosted API/browser checks after worker-first publication and Git app deployment `84dafa1` reached READY. Direct worker validation additionally covered old-client compatibility, genuine irreducibility, a known optimum, bounded partial exhaustion and private source files. A real 61-candidate hosted app scenario displayed **Conflict search incomplete** after 48 checks without allocations. Independent reading of its five-sheet comparison workbook recovered the exact named constraints/status and blank infeasible costs. Original history and CSV bytes remained identical after price/profile revisions. Neon schema and runtime credentials were unchanged.
+
+
+Layer hen-day reporting is an app-only update reading existing production/forecast tables. No Neon migration, worker deployment or credential change is required. Verify actual zero versus missing dates, weighted rates, calendar/legacy/misaligned baselines, source exports, auditor access and tenant isolation using clearly labeled private synthetic fixtures. Reports never post operational events or create saved report rows.

@@ -80,3 +80,6 @@ Saved PDF exports reuse `loadRecipeReports` inside the existing RLS transaction 
 
 
 Conflict diagnostics add metadata to immutable `optimization_runs.result` with request model 6/diagnostic model 3. The Node adapter maps bounded worker row/side indices to the exact original nutrient, processing and effective-bound identities; it validates response shape, uniqueness and completed-check counts. No diagnostic submodel allocation is stored. Existing same-tenant RLS/history/report queries expose recorded analysis to members/auditors without recomputing against current references. Legacy results remain unchanged; no migration or grant is required.
+
+
+Layer reports read an existing layer unit, record prefix through the chosen end and optional forecast in one RLS-scoped SQL statement. No new tenant table or migration is needed. The API checks same-organization IDs and layer/egg-forecast types before deriving a bounded read-only snapshot. Decimal feed strings and immutable source IDs/timestamps are retained; stable input/source/result evidence is hashed, with generation time outside the digest. Reports/downloads do not append records, forecasts, audits or inventory movements. An appended record outside the report end cannot alter its source snapshot.

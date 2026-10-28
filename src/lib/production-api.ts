@@ -1,3 +1,4 @@
+import { layerReportApi } from "./layer-report-api";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { tenant, audit } from "./db";
@@ -42,6 +43,8 @@ export async function productionApi(
   user: { id: string },
   path: string,
 ) {
+  const report = await layerReportApi(request, user, path);
+  if (report) return report;
   const method = request.method;
   if (path === "forecasts" && method === "GET") {
     const org = id.parse(request.nextUrl.searchParams.get("organizationId"));

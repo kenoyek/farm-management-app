@@ -1,5 +1,6 @@
 "use client";
 import { useDialog } from "@/lib/use-dialog";
+import LayerReporting from "./layer-report";
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus, ClipboardList, Download, Activity } from "lucide-react";
 import { api, downloadCsv } from "@/lib/client";
@@ -229,7 +230,12 @@ export default function Production({
           </div>
           <div className="stats-grid">
             {[
-              ["Live population", live.toLocaleString()],
+              [
+                unit.kind === "layers"
+                  ? "Recorded population balance"
+                  : "Live population",
+                live.toLocaleString(),
+              ],
               ["Feed recorded", `${feed.toFixed(2)} kg`],
               unit.kind === "layers"
                 ? ["Saleable eggs", eggs.toLocaleString()]
@@ -287,6 +293,14 @@ export default function Production({
                 be reconciled separately.
               </span>
             </div>
+          )}
+          {unit.kind === "layers" && (
+            <LayerReporting
+              key={`${organizationId}:${unit.id}:${rows.at(-1)?.id ?? "none"}`}
+              organizationId={organizationId}
+              unit={unit}
+              lastDate={rows.at(-1)?.recorded_on ?? unit.stocked_on}
+            />
           )}
           <section className="panel">
             <div className="panel-heading">
