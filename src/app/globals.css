@@ -1934,3 +1934,40 @@ textarea {
 .broiler-planning .feed-schedule {
   min-width: 1600px;
 }
+.broiler-economics {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.broiler-economics form,
+.broiler-economics fieldset,
+.budget-results,
+.budget-comparison {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.broiler-economics table {
+  min-width: 720px;
+}
+.broiler-economics table input {
+  min-width: 120px;
+  width: 100%;
+}
+.broiler-economics .evidence-hash {
+  overflow-wrap: anywhere;
+}
+.budget-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 1rem;
+}
+.budget-metrics dt {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.budget-metrics dd {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}

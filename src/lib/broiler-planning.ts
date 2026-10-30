@@ -157,7 +157,7 @@ export type PlanRow = {
   created_at: string;
 };
 export const broilerPlanModel = "broiler-daily-linear-targets-v1";
-export function projectBroilerPlan(raw: BroilerPlanData, u: PlanUnit) {
+export function calculateBroilerPlan(raw: BroilerPlanData, u: PlanUnit) {
   const p = broilerPlanData.parse(raw),
     start = Date.parse(u.stocked_on + "T00:00:00Z");
   if (
@@ -236,7 +236,7 @@ export function projectBroilerPlan(raw: BroilerPlanData, u: PlanUnit) {
       birds !== null && p.salePrice !== null
         ? (p.saleBasis === "bird" ? birds : biomass!).mul(p.salePrice)
         : null;
-  return {
+  const forecast = {
     modelVersion: broilerPlanModel,
     rows,
     durationDays: duration,
@@ -260,6 +260,22 @@ export function projectBroilerPlan(raw: BroilerPlanData, u: PlanUnit) {
       .toFixed(6),
     currency: p.currency,
   };
+  return {
+    forecast,
+    exact: {
+      birds,
+      biomass,
+      feed,
+      feedCost: cost,
+      chickCost:
+        p.chickCostPerBird === null
+          ? null
+          : new D(u.opening_count).mul(p.chickCostPerBird),
+    },
+  };
+}
+export function projectBroilerPlan(raw: BroilerPlanData, u: PlanUnit) {
+  return calculateBroilerPlan(raw, u).forecast;
 }
 export type PlanReport = {
   source: PlanRow;

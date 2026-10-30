@@ -181,3 +181,10 @@ In **Production → a broiler batch → Broiler lifecycle**, managers can record
 
 
 In **Production → a broiler batch → Broiler batch planning**, enter cited age-based feed/brooding stages and growth targets, optional housing/strain/hatch/supplier details and explicit planning prices. Preview and save immutable versions, compare guide weights/feed with date-matched observations and export exact saved JSON/CSV. Missing assumptions stay unknown; original placement anchors the forecast. Saved recipe links are references only. Plans do not post actual feed, birds, sales, approvals or cash, and feed/chick estimates are not total cost/profit.
+
+
+## Broiler cost and yield planning
+
+In Production, save a sourced broiler batch plan first, then use **Broiler cost and yield planning** (reload its history after saving a new plan). Select the exact plan version; its historical currency, feed and chick prices remain attached. Enter eight additional batch cost totals with source/allocation evidence, documenting zeros explicitly. The complete-budget confirmation plus known costs enables total cost, projected margin and break-even; missing amounts remain unknown. Choose one live-bird, live-kg or explicitly sourced processed-kg sale basis. The model assumes all expected survivors are sold at the linked plan's harvest date, with no partial/by-product revenue allocation.
+
+Save immutable scenario versions, compare two to four in the same original currency with a chosen baseline, and download private complete-source JSON/CSV. Working copies can be downloaded before reload; pending save receipts must be retried exactly. These forecasts do not post actual stock, processing, costs, sales or cash. Actual costing/profit still requires inventory valuation and financial ledgers.

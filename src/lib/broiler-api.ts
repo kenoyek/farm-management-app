@@ -1,4 +1,5 @@
 import { broilerPlanningApi } from "./broiler-planning-api";
+import { broilerEconomicsApi } from "./broiler-economics-api";
 import { broilerRecoveryApi } from "./broiler-recovery-api";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -21,6 +22,8 @@ export async function broilerApi(
   user: { id: string },
   path: string,
 ) {
+  const economics = await broilerEconomicsApi(request, user, path);
+  if (economics) return economics;
   const planning = await broilerPlanningApi(request, user, path);
   if (planning) return planning;
   const recovery = await broilerRecoveryApi(request, user, path);
