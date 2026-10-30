@@ -521,7 +521,7 @@ it("enforces evidence, actor, chronology and population through direct runtime i
 it("exports original/effective daily rows and all guidance versions with deterministic private source evidence and no mutations", async () => {
   const before = await snapshot(),
     audited = await snapshot(auditor);
-  expect(before.modelVersion).toBe("broiler-reviewed-loss-biomass-v3");
+  expect(before.modelVersion).toBe("broiler-processing-source-lifecycle-v4");
   expect(audited.evidenceSha256).toBe(before.evidenceSha256);
   const csv = await get(auditor, unit, "csv"),
     text = await csv.text();

@@ -1,5 +1,6 @@
 import { broilerTreatments, type BroilerReview } from "./broiler-recovery";
 import { broilerLossEvidence, type BroilerLossReview } from "./broiler-loss";
+import type { ProcessingReview } from "./broiler-processing";
 import DecimalBase from "decimal.js";
 const Decimal = DecimalBase.clone({ precision: 40 });
 import { z } from "zod";
@@ -127,6 +128,7 @@ export type BroilerSource = {
   originalRecords?: BroilerDaily[];
   reviews?: BroilerReview[];
   lossReviews?: BroilerLossReview[];
+  processingReviews?: ProcessingReview[];
   events: BroilerEvent[];
   timezone: string;
   today: string;
@@ -314,13 +316,22 @@ export function broilerSummary(s: BroilerSource) {
       return e.quantity! > recorded;
     })
     .map((e) => e.id);
+  const replacedProcessing = new Set(
+    (s.processingReviews ?? []).map((r) => r.previous_id),
+  );
+  const processedHarvests = new Set(
+    (s.processingReviews ?? [])
+      .filter((r) => !replacedProcessing.has(r.id) && r.input.kind === "record")
+      .map((r) => r.harvest_id),
+  );
   const voidable = active
     .filter(
       (e) =>
-        !(e.kind === "cull" || e.kind === "harvest") ||
-        (!s.records.some((r) => r.recorded_on > e.recorded_on) &&
-          !active.some((n) => BigInt(n.position) > BigInt(e.position)) &&
-          !reviews.some((r) => BigInt(r.position) > BigInt(e.position))),
+        !processedHarvests.has(e.id) &&
+        (!(e.kind === "cull" || e.kind === "harvest") ||
+          (!s.records.some((r) => r.recorded_on > e.recorded_on) &&
+            !active.some((n) => BigInt(n.position) > BigInt(e.position)) &&
+            !reviews.some((r) => BigInt(r.position) > BigInt(e.position)))),
     )
     .map((e) => e.id);
   const sampleDays = sample
@@ -342,6 +353,7 @@ export function broilerSummary(s: BroilerSource) {
       ...s.events,
       ...reviews,
       ...(s.lossReviews ?? []),
+      ...(s.processingReviews ?? []),
     ].reduce(
       (last, e) => (BigInt(e.position) > BigInt(last) ? e.position : last),
       "0",
@@ -376,13 +388,14 @@ export type BroilerSnapshot = BroilerSource & {
   summary: ReturnType<typeof broilerSummary>;
   evidenceSha256: string;
 };
-export const broilerLifecycleModel = "broiler-reviewed-loss-biomass-v3";
+export const broilerLifecycleModel = "broiler-processing-source-lifecycle-v4";
 export function broilerEvidence(s: BroilerSource) {
   return {
     modelVersion: broilerLifecycleModel,
     originalRecords: s.originalRecords,
     reviews: s.reviews,
     lossReviews: s.lossReviews ?? [],
+    processingReviews: s.processingReviews ?? [],
     unit: s.unit,
     records: s.records,
     events: s.events,
@@ -589,6 +602,32 @@ export function broilerCsv(s: BroilerSnapshot) {
       r.created_by,
       r.created_at,
       JSON.stringify(r.source_snapshot),
+      JSON.stringify(r),
+    ]),
+    [],
+    ["Processing measurement review history"],
+    [
+      "ID",
+      "Position",
+      "Harvest ID",
+      "Revision",
+      "Previous review",
+      "Kind",
+      "Reason",
+      "Evidence",
+      "Original harvest source",
+      "Complete immutable review",
+    ],
+    ...(s.processingReviews ?? []).map((r) => [
+      r.id,
+      r.position,
+      r.harvest_id,
+      r.revision,
+      r.previous_id,
+      r.input.kind,
+      r.input.reason,
+      r.input.evidence,
+      JSON.stringify(r.harvest_snapshot),
       JSON.stringify(r),
     ]),
     [],

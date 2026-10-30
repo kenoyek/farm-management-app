@@ -1,3 +1,5 @@
+import { readBroilerSource } from "./broiler-source";
+import { broilerProcessingApi } from "./broiler-processing-api";
 import { broilerPlanningApi } from "./broiler-planning-api";
 import { broilerEconomicsApi } from "./broiler-economics-api";
 import { broilerRecoveryApi } from "./broiler-recovery-api";
@@ -13,7 +15,6 @@ import {
   broilerCsv,
   broilerEvidence,
   harvestAmount,
-  type BroilerSource,
 } from "./broiler-lifecycle";
 const headers = {
   "Cache-Control": "private, no-store",
@@ -24,6 +25,8 @@ export async function broilerApi(
   user: { id: string },
   path: string,
 ) {
+  const processing = await broilerProcessingApi(request, user, path);
+  if (processing) return processing;
   const loss = await broilerLossApi(request, user, path);
   if (loss) return loss;
   const economics = await broilerEconomicsApi(request, user, path);
@@ -45,34 +48,9 @@ export async function broilerApi(
     const format = z
       .enum(["json", "csv"])
       .parse(request.nextUrl.searchParams.get("format") ?? "json");
-    const source: BroilerSource = await tenant(user.id, async (c) => {
-      const r = (
-        await c.query(
-          `SELECT to_jsonb(u)||jsonb_build_object('stocked_on',u.stocked_on::text,'initial_weight_g',u.initial_weight_g::text) AS unit,o.timezone,(now() AT TIME ZONE o.timezone)::date::text AS today,
-   coalesce((SELECT jsonb_agg(to_jsonb(d)||jsonb_build_object('feed_kg',d.feed_kg::text,'average_weight_g',d.average_weight_g::text) ORDER BY d.recorded_on,d.id) FROM (SELECT * FROM effective_daily_records WHERE organization_id=$1 AND unit_id=$2 ORDER BY recorded_on,id LIMIT 10001)d),'[]'::jsonb) AS records,
-   coalesce((SELECT jsonb_agg(to_jsonb(d)||jsonb_build_object('feed_kg',d.feed_kg::text,'average_weight_g',d.average_weight_g::text) ORDER BY d.recorded_on,d.id) FROM (SELECT * FROM daily_records WHERE organization_id=$1 AND unit_id=$2 ORDER BY recorded_on,id LIMIT 10001)d),'[]'::jsonb) AS "originalRecords",
-   coalesce((SELECT jsonb_agg(to_jsonb(r)||jsonb_build_object('position',r.position::text,'expected_position',r.expected_position::text,'feed_kg',r.feed_kg::text,'average_weight_g',r.average_weight_g::text) ORDER BY r.position) FROM (SELECT * FROM broiler_reviews WHERE organization_id=$1 AND unit_id=$2 ORDER BY position LIMIT 10001)r),'[]'::jsonb) AS reviews,
-   coalesce((SELECT jsonb_agg(to_jsonb(e)||jsonb_build_object('position',e.position::text,'expected_position',e.expected_position::text,'weight_kg',e.weight_kg::text,'price_per_unit',e.price_per_unit::text,'amount',e.amount::text) ORDER BY e.position) FROM (SELECT * FROM broiler_events WHERE organization_id=$1 AND unit_id=$2 ORDER BY position LIMIT 10001)e),'[]'::jsonb) AS events,
-   coalesce((SELECT jsonb_agg(to_jsonb(l)||jsonb_build_object('position',l.position::text,'expected_position',l.expected_position::text,'weight_kg',l.weight_kg::text) ORDER BY l.position) FROM (SELECT * FROM broiler_loss_reviews WHERE organization_id=$1 AND unit_id=$2 ORDER BY position LIMIT 10001)l),'[]'::jsonb) AS "lossReviews"
-   FROM production_units u JOIN organizations o ON o.id=u.organization_id WHERE u.organization_id=$1 AND u.id=$2 AND u.kind='broilers'`,
-          [org, unit],
-        )
-      ).rows[0];
-      if (!r) fail(404, "Broiler batch not found.");
-      return r;
-    });
-    if (
-      source.events.length > 10000 ||
-      source.records.length > 10000 ||
-      (source.originalRecords?.length ?? 0) > 10000 ||
-      (source.reviews?.length ?? 0) > 10000 ||
-      (source.lossReviews?.length ?? 0) > 10000 ||
-      Buffer.byteLength(JSON.stringify(source)) > 4 * 1024 * 1024
-    )
-      fail(
-        422,
-        "This batch exceeds lifecycle report limits. Ask an administrator to review its source history.",
-      );
+    const source = await tenant(user.id, (c) =>
+      readBroilerSource(c, org, unit),
+    );
     // Calendar context is returned for forms; evidence remains stable across days.
     const normalized = broilerEvidence(source);
     const summary = broilerSummary(source);
@@ -184,6 +162,18 @@ export async function broilerApi(
       ).rows[0];
       if (!original)
         fail(409, "The original event is missing or already voided.");
+      if (
+        (
+          await c.query(
+            "SELECT 1 FROM current_broiler_processing_reviews WHERE harvest_id=$1 AND input->>'kind'='record'",
+            [original.id],
+          )
+        ).rowCount
+      )
+        fail(
+          409,
+          "Withdraw an erroneous processing record before voiding its source harvest. Withdrawing evidence does not physically return processed birds.",
+        );
       if (
         ["cull", "harvest"].includes(original.kind) &&
         (

@@ -333,6 +333,7 @@ test("reviews measured broiler loss biomass, recovers a receipt and keeps stale-
             originalRecords: report.originalRecords,
             reviews: report.reviews,
             lossReviews: report.lossReviews,
+            processingReviews: report.processingReviews,
             unit: report.unit,
             records: report.records,
             events: report.events,

@@ -523,7 +523,7 @@ it("exports complete private source/review evidence with the v3 digest, current 
   const h = await snapshot(),
     r = await get(auditor, unit, "csv"),
     csv = await r.text();
-  expect(h.modelVersion).toBe("broiler-reviewed-loss-biomass-v3");
+  expect(h.modelVersion).toBe("broiler-processing-source-lifecycle-v4");
   expect(h.evidenceSha256).toBe(
     createHash("sha256")
       .update(JSON.stringify(broilerEvidence(h)))

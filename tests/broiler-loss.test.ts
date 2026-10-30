@@ -180,7 +180,7 @@ it("exports every loss review, its exact original source and the current evidenc
   const s = measuredLossFixture();
   s.lossReviews![0].reason = "=Synthetic review source";
   const evidence = broilerEvidence(s);
-  expect(evidence.modelVersion).toBe("broiler-reviewed-loss-biomass-v3");
+  expect(evidence.modelVersion).toBe("broiler-processing-source-lifecycle-v4");
   expect(evidence.lossReviews).toEqual(s.lossReviews);
   const csv = broilerCsv({
     ...s,

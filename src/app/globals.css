@@ -2001,3 +2001,51 @@ textarea {
   min-height: auto;
   margin: 2px 0 0;
 }
+.broiler-processing,
+.broiler-processing form,
+.broiler-processing fieldset {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.broiler-lifecycle .broiler-processing table {
+  min-width: 860px;
+  table-layout: fixed;
+}
+.broiler-processing table input,
+.broiler-processing table select {
+  width: 100%;
+  min-width: 100px;
+}
+.broiler-processing th,
+.broiler-processing td {
+  overflow-wrap: anywhere;
+}
+.broiler-processing th .helper {
+  display: block;
+}
+.broiler-processing .check-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  column-gap: 8px;
+}
+.broiler-processing .check-row input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+  margin: 2px 0 0;
+}
+.processing-metrics {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+}
+.processing-metrics dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.processing-metrics dd {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
