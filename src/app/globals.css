@@ -1472,6 +1472,10 @@ textarea {
 .chart-wrap {
   padding: 25px 30px 5px;
 }
+.layer-report .chart-wrap {
+  min-width: 0;
+  overflow: clip;
+}
 .compact-select {
   width: auto;
   max-width: 300px;

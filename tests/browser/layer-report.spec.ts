@@ -193,12 +193,52 @@ test("reports weighted hen-days, preserves unknown dates and reconciles an expli
       .click();
     await expect(result).toContainText("Recorded days: 2 / 3");
     await expect(result).toContainText("Complete-window gross eggs: Unknown");
+    await page.evaluate(() => {
+      window.addEventListener(
+        "resize",
+        () => {
+          const width = innerWidth,
+            scrollWidth = document.documentElement.scrollWidth;
+          const overflowing =
+            scrollWidth > width
+              ? [...document.querySelectorAll("*")]
+                  .filter((el) => {
+                    if (el.getBoundingClientRect().right <= width) return false;
+                    for (let p = el.parentElement; p; p = p.parentElement)
+                      if (
+                        ["auto", "scroll", "hidden", "clip"].includes(
+                          getComputedStyle(p).overflowX,
+                        )
+                      )
+                        return false;
+                    return true;
+                  })
+                  .slice(0, 12)
+                  .map((el) => ({
+                    tag: el.tagName,
+                    class: el.getAttribute("class"),
+                    right: el.getBoundingClientRect().right,
+                  }))
+              : [];
+          document.documentElement.dataset.layerResize = JSON.stringify({
+            width,
+            scrollWidth,
+            overflowing,
+          });
+        },
+        { once: true },
+      );
+    });
     await page.setViewportSize({ width: 390, height: 844 });
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
+    await page.waitForFunction(
+      () => !!document.documentElement.dataset.layerResize,
+    );
+    const mobile = await page.evaluate(() =>
+      JSON.parse(document.documentElement.dataset.layerResize!),
+    );
+    expect(mobile.scrollWidth, JSON.stringify(mobile)).toBeLessThanOrEqual(
+      mobile.width,
+    );
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.reload();
     await page.getByRole("button", { name: "Production", exact: true }).click();

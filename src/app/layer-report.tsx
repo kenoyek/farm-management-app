@@ -98,7 +98,10 @@ export default function LayerReporting({
     }
   }
   return (
-    <section className="panel" aria-label="Layer hen-day reporting">
+    <section
+      className="panel layer-report"
+      aria-label="Layer hen-day reporting"
+    >
       <h2>Hen-day report and forecast reconciliation</h2>
       <p className="helper">
         Use opening-of-day hens before recorded same-day deaths. Missing history
