@@ -147,3 +147,6 @@ Broiler recovery hosted evidence: migration 021 and restricted-runtime checks pa
 
 
 For sourced broiler planning, apply additive migration 022 before app publication. It adds manager-reviewed immutable planning inputs and snapshot/age/reference guards, without changing existing production or recovery views. The Python worker and app secrets remain unchanged. Hosted verification must exercise known/unknown forecasts, exact reference/version lineage, role/tenant/origin checks, unchanged actual balances/recipe status, historical source exports, chart/editor persistence and mobile layout with private synthetic accounts.
+
+
+Broiler planning hosted evidence: migration 022 and restricted runtime checks passed before Git deployment `13a24de` reached READY. All 32 hosted API/Chromium checks and an independent complete-source Decimal/CSV/SHA-256 recalculation passed. The forecast's expected 81 birds and 35.2 kg feed remained separate from 99 actually recorded birds and 3 kg recorded feed. Source versions, original recipe status/context and historical report bytes/currencies were preserved through current observations and newer plans. GitHub Actions run 41073613798 passed the full 307-test/47-Python/20-browser workflow. Fixtures are labeled/private; no local cleanup suite was run against hosted data, and no Python worker or secret was changed.
