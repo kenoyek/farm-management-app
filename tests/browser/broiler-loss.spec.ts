@@ -375,6 +375,22 @@ test("reviews measured broiler loss biomass, recovers a receipt and keeps stale-
       animations: "disabled",
       fullPage: false,
     });
+    await region
+      .getByRole("combobox", { name: "Loss to review", exact: true })
+      .selectOption("daily:2024-02-01");
+    await region
+      .getByLabel("Measured whole-bird loss kg", { exact: true })
+      .evaluate((el) => el.scrollIntoView({ block: "start" }));
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 1,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: ".local/broiler-loss-form-mobile.png",
+      animations: "disabled",
+      fullPage: false,
+    });
     await page.setViewportSize({ width: 1280, height: 900 });
     auditor = (
       await db.query(

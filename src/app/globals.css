@@ -1990,3 +1990,14 @@ textarea {
   display: block;
   max-width: 220px;
 }
+.broiler-loss .check-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  column-gap: 8px;
+}
+.broiler-loss .check-row input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+  margin: 2px 0 0;
+}
