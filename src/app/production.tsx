@@ -1,5 +1,6 @@
 "use client";
 import { useDialog } from "@/lib/use-dialog";
+import BroilerPlanning from "./broiler-planning";
 import BroilerLifecycle from "./broiler-lifecycle";
 import LayerRecovery from "./layer-recovery";
 import LayerReporting from "./layer-report";
@@ -288,6 +289,15 @@ export default function Production({
                 </p>
               </div>
             </div>
+          )}
+          {unit.kind === "broilers" && (
+            <BroilerPlanning
+              key={`planning:${organizationId}:${unit.id}:${actor}`}
+              organizationId={organizationId}
+              unitId={unit.id}
+              actor={actor}
+              canPlan={canStock}
+            />
           )}
           {unit.kind === "broilers" && (
             <BroilerLifecycle

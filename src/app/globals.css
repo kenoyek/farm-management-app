@@ -1899,3 +1899,38 @@ textarea {
   gap: 1rem;
   min-width: 0;
 }
+
+.broiler-planning {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  margin-block: 1.5rem;
+}
+.broiler-planning .table-scroll {
+  min-width: 0;
+}
+.broiler-planning table {
+  min-width: 900px;
+  overflow-wrap: normal;
+  table-layout: fixed;
+}
+.broiler-planning table input,
+.broiler-planning table select {
+  min-width: 110px;
+  width: 100%;
+}
+.broiler-planning .growth-targets {
+  min-width: 600px;
+}
+.broiler-planning .helper {
+  overflow-wrap: anywhere;
+}
+.planning-chart {
+  min-width: 0;
+  width: 100%;
+  height: 260px;
+}
+
+.broiler-planning .feed-schedule {
+  min-width: 1600px;
+}

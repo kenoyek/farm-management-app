@@ -178,3 +178,6 @@ In **Production → a broiler batch → Broiler lifecycle**, managers can record
 
 
 **Broiler record recovery** in the same Production screen adds evidence-backed withdrawal-guidance versions for genuine administrations and complete daily replacements/backfills. Original treatment/daily records remain unchanged. Revised deaths/samples must fit the full withdrawal history; later guidance flags conflicting earlier harvests without changing their original stock or prices. Current-source JSON/CSV include original/effective daily evidence and complete review chains.
+
+
+In **Production → a broiler batch → Broiler batch planning**, enter cited age-based feed/brooding stages and growth targets, optional housing/strain/hatch/supplier details and explicit planning prices. Preview and save immutable versions, compare guide weights/feed with date-matched observations and export exact saved JSON/CSV. Missing assumptions stay unknown; original placement anchors the forecast. Saved recipe links are references only. Plans do not post actual feed, birds, sales, approvals or cash, and feed/chick estimates are not total cost/profit.
