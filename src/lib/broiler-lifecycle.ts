@@ -1,4 +1,5 @@
 import { broilerTreatments, type BroilerReview } from "./broiler-recovery";
+import { broilerLossEvidence, type BroilerLossReview } from "./broiler-loss";
 import DecimalBase from "decimal.js";
 const Decimal = DecimalBase.clone({ precision: 40 });
 import { z } from "zod";
@@ -118,12 +119,14 @@ export type BroilerDaily = {
   feed_kg: string;
   average_weight_g: string | null;
   sample_size: number | null;
+  adjustment_id?: string | null;
 };
 export type BroilerSource = {
   unit: BroilerUnit;
   records: BroilerDaily[];
   originalRecords?: BroilerDaily[];
   reviews?: BroilerReview[];
+  lossReviews?: BroilerLossReview[];
   events: BroilerEvent[];
   timezone: string;
   today: string;
@@ -169,11 +172,25 @@ export function broilerSummary(s: BroilerSource) {
     .sort()
     .at(-1)!;
   const feed = s.records.reduce((n, r) => n.plus(r.feed_kg), new Decimal(0));
+  const lossEvidence = broilerLossEvidence(s);
+  const cullWeight = (e: BroilerEvent) =>
+    e.kind === "cull"
+      ? (lossEvidence.targets.find((t) => t.targetEventId === e.id)?.weightKg ??
+        null)
+      : e.weight_kg;
   const measuredWithdrawalKg = withdrawals.reduce(
-    (n, e) => n.plus(e.weight_kg ?? 0),
+    (n, e) => n.plus(cullWeight(e) ?? 0),
     new Decimal(0),
   );
-  const unknownWithdrawalWeight = withdrawals.some((e) => e.weight_kg === null);
+  const unknownWithdrawalWeight = withdrawals.some(
+    (e) => cullWeight(e) === null,
+  );
+  const dailyLosses = lossEvidence.targets.filter((t) => t.kind === "daily");
+  const unknownDeathWeight = dailyLosses.some((t) => t.weightKg === null);
+  const measuredDeathKg = dailyLosses.reduce(
+    (n, t) => n.plus(t.weightKg ?? 0),
+    new Decimal(0),
+  );
   const initial = new Decimal(s.unit.opening_count)
     .mul(s.unit.initial_weight_g)
     .div(1000);
@@ -197,9 +214,9 @@ export function broilerSummary(s: BroilerSource) {
     reasons.push(
       "Daily feed observations are missing from the stocking date through the last recorded activity.",
     );
-  if (mortality > 0)
+  if (unknownDeathWeight)
     reasons.push(
-      "Dead-bird biomass is unknown; mortality-adjusted gain cannot be calculated.",
+      "Dead-bird biomass is unknown or tied to older daily evidence; mortality-adjusted gain cannot be calculated.",
     );
   if (unknownWithdrawalWeight)
     reasons.push("At least one culled group has no measured total weight.");
@@ -213,7 +230,9 @@ export function broilerSummary(s: BroilerSource) {
       "A representative remaining-bird sample is required after the last withdrawal, on the final observation date.",
     );
   const gain =
-    closing === null ? null : closing.plus(measuredWithdrawalKg).minus(initial);
+    closing === null || unknownDeathWeight || unknownWithdrawalWeight
+      ? null
+      : closing.plus(measuredWithdrawalKg).plus(measuredDeathKg).minus(initial);
   if (gain === null || gain.lte(0))
     reasons.push("Positive cohort biomass gain is unavailable.");
   const sales: Record<string, string> = {};
@@ -319,7 +338,11 @@ export function broilerSummary(s: BroilerSource) {
     sampledAdgGPerDay,
     initialBiomassKg: initial.toFixed(6),
     asOf,
-    expectedPosition: [...s.events, ...reviews].reduce(
+    expectedPosition: [
+      ...s.events,
+      ...reviews,
+      ...(s.lossReviews ?? []),
+    ].reduce(
       (last, e) => (BigInt(e.position) > BigInt(last) ? e.position : last),
       "0",
     ),
@@ -330,6 +353,9 @@ export function broilerSummary(s: BroilerSource) {
     harvested,
     feedKg: feed.toFixed(6),
     measuredWithdrawalKg: measuredWithdrawalKg.toFixed(6),
+    measuredDeathKg: unknownDeathWeight ? null : measuredDeathKg.toFixed(6),
+    knownMeasuredDeathKg: measuredDeathKg.toFixed(6),
+    lossEvidence,
     estimatedClosingBiomassKg: closing?.toFixed(6) ?? null,
     latestSample: sample ?? null,
     completeFeed,
@@ -350,6 +376,19 @@ export type BroilerSnapshot = BroilerSource & {
   summary: ReturnType<typeof broilerSummary>;
   evidenceSha256: string;
 };
+export const broilerLifecycleModel = "broiler-reviewed-loss-biomass-v3";
+export function broilerEvidence(s: BroilerSource) {
+  return {
+    modelVersion: broilerLifecycleModel,
+    originalRecords: s.originalRecords,
+    reviews: s.reviews,
+    lossReviews: s.lossReviews ?? [],
+    unit: s.unit,
+    records: s.records,
+    events: s.events,
+    timezone: s.timezone,
+  };
+}
 export function broilerCsv(s: BroilerSnapshot) {
   const rows: unknown[][] = [
     ["Broiler lifecycle", s.modelVersion],
@@ -361,9 +400,12 @@ export function broilerCsv(s: BroilerSnapshot) {
     ["FCR", s.summary.fcr],
     [
       "FCR scope",
-      "Feed / (estimated remaining biomass + measured cull and live-harvest biomass - initial biomass). No unknown death biomass.",
+      "Feed / (estimated remaining biomass + measured whole-bird death biomass + measured cull and live-harvest biomass - initial biomass). Complete feed and current measured loss evidence required.",
     ],
     ["FCR unavailable reasons", s.summary.fcrUnavailableReasons.join(" ")],
+    ["Measured dead-bird kg", s.summary.measuredDeathKg],
+    ["Known dead-bird kg subtotal", s.summary.knownMeasuredDeathKg],
+    ["Cohort gain kg", s.summary.cohortGainKg],
     [
       "Sales values are recorded prices, not cash, profit, processed yield or veterinary clearance.",
     ],
@@ -484,6 +526,70 @@ export function broilerCsv(s: BroilerSnapshot) {
       h.date,
       h.recordedHolds.join(";"),
       JSON.stringify(h.currentConcerns),
+    ]),
+    [],
+    ["Current loss biomass evidence"],
+    [
+      "Kind",
+      "Date",
+      "Original cull ID",
+      "Effective source ID",
+      "Whole birds",
+      "Original kg",
+      "Current kg",
+      "Evidence state",
+      "Latest weight review",
+      "Evidence",
+    ],
+    ...s.summary.lossEvidence.targets.map((t) => [
+      t.kind,
+      t.date,
+      t.targetEventId,
+      t.sourceId,
+      t.sourceCount,
+      t.originalWeightKg,
+      t.weightKg,
+      t.state,
+      t.reviewId,
+      t.evidence,
+    ]),
+    [],
+    ["Loss biomass review history"],
+    [
+      "ID",
+      "Position",
+      "Kind",
+      "Loss date",
+      "Original cull ID",
+      "Source revision ID",
+      "Whole birds",
+      "Measured whole-bird kg",
+      "Measurement basis",
+      "Previous review",
+      "Reason",
+      "Evidence",
+      "Actor",
+      "Created at",
+      "Complete original loss source",
+      "Complete immutable review",
+    ],
+    ...(s.lossReviews ?? []).map((r) => [
+      r.id,
+      r.position,
+      r.kind,
+      r.observed_on,
+      r.target_event_id,
+      r.source_id,
+      r.source_count,
+      r.weight_kg,
+      r.measurement_basis,
+      r.previous_id,
+      r.reason,
+      r.evidence,
+      r.created_by,
+      r.created_at,
+      JSON.stringify(r.source_snapshot),
+      JSON.stringify(r),
     ]),
     [],
     ["Immutable lifecycle events"],

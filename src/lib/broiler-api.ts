@@ -1,6 +1,7 @@
 import { broilerPlanningApi } from "./broiler-planning-api";
 import { broilerEconomicsApi } from "./broiler-economics-api";
 import { broilerRecoveryApi } from "./broiler-recovery-api";
+import { broilerLossApi } from "./broiler-loss-api";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -10,6 +11,7 @@ import {
   broilerEventInput,
   broilerSummary,
   broilerCsv,
+  broilerEvidence,
   harvestAmount,
   type BroilerSource,
 } from "./broiler-lifecycle";
@@ -22,6 +24,8 @@ export async function broilerApi(
   user: { id: string },
   path: string,
 ) {
+  const loss = await broilerLossApi(request, user, path);
+  if (loss) return loss;
   const economics = await broilerEconomicsApi(request, user, path);
   if (economics) return economics;
   const planning = await broilerPlanningApi(request, user, path);
@@ -48,7 +52,8 @@ export async function broilerApi(
    coalesce((SELECT jsonb_agg(to_jsonb(d)||jsonb_build_object('feed_kg',d.feed_kg::text,'average_weight_g',d.average_weight_g::text) ORDER BY d.recorded_on,d.id) FROM (SELECT * FROM effective_daily_records WHERE organization_id=$1 AND unit_id=$2 ORDER BY recorded_on,id LIMIT 10001)d),'[]'::jsonb) AS records,
    coalesce((SELECT jsonb_agg(to_jsonb(d)||jsonb_build_object('feed_kg',d.feed_kg::text,'average_weight_g',d.average_weight_g::text) ORDER BY d.recorded_on,d.id) FROM (SELECT * FROM daily_records WHERE organization_id=$1 AND unit_id=$2 ORDER BY recorded_on,id LIMIT 10001)d),'[]'::jsonb) AS "originalRecords",
    coalesce((SELECT jsonb_agg(to_jsonb(r)||jsonb_build_object('position',r.position::text,'expected_position',r.expected_position::text,'feed_kg',r.feed_kg::text,'average_weight_g',r.average_weight_g::text) ORDER BY r.position) FROM (SELECT * FROM broiler_reviews WHERE organization_id=$1 AND unit_id=$2 ORDER BY position LIMIT 10001)r),'[]'::jsonb) AS reviews,
-   coalesce((SELECT jsonb_agg(to_jsonb(e)||jsonb_build_object('position',e.position::text,'expected_position',e.expected_position::text,'weight_kg',e.weight_kg::text,'price_per_unit',e.price_per_unit::text,'amount',e.amount::text) ORDER BY e.position) FROM (SELECT * FROM broiler_events WHERE organization_id=$1 AND unit_id=$2 ORDER BY position LIMIT 10001)e),'[]'::jsonb) AS events
+   coalesce((SELECT jsonb_agg(to_jsonb(e)||jsonb_build_object('position',e.position::text,'expected_position',e.expected_position::text,'weight_kg',e.weight_kg::text,'price_per_unit',e.price_per_unit::text,'amount',e.amount::text) ORDER BY e.position) FROM (SELECT * FROM broiler_events WHERE organization_id=$1 AND unit_id=$2 ORDER BY position LIMIT 10001)e),'[]'::jsonb) AS events,
+   coalesce((SELECT jsonb_agg(to_jsonb(l)||jsonb_build_object('position',l.position::text,'expected_position',l.expected_position::text,'weight_kg',l.weight_kg::text) ORDER BY l.position) FROM (SELECT * FROM broiler_loss_reviews WHERE organization_id=$1 AND unit_id=$2 ORDER BY position LIMIT 10001)l),'[]'::jsonb) AS "lossReviews"
    FROM production_units u JOIN organizations o ON o.id=u.organization_id WHERE u.organization_id=$1 AND u.id=$2 AND u.kind='broilers'`,
           [org, unit],
         )
@@ -61,6 +66,7 @@ export async function broilerApi(
       source.records.length > 10000 ||
       (source.originalRecords?.length ?? 0) > 10000 ||
       (source.reviews?.length ?? 0) > 10000 ||
+      (source.lossReviews?.length ?? 0) > 10000 ||
       Buffer.byteLength(JSON.stringify(source)) > 4 * 1024 * 1024
     )
       fail(
@@ -68,15 +74,7 @@ export async function broilerApi(
         "This batch exceeds lifecycle report limits. Ask an administrator to review its source history.",
       );
     // Calendar context is returned for forms; evidence remains stable across days.
-    const normalized = {
-      modelVersion: "broiler-reviewed-lifecycle-v2",
-      originalRecords: source.originalRecords,
-      reviews: source.reviews,
-      unit: source.unit,
-      records: source.records,
-      events: source.events,
-      timezone: source.timezone,
-    };
+    const normalized = broilerEvidence(source);
     const summary = broilerSummary(source);
     const evidenceSha256 = createHash("sha256")
       .update(JSON.stringify(normalized))

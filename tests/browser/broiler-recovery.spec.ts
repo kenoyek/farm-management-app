@@ -399,7 +399,7 @@ test("recovers a genuine broiler treatment and full daily evidence without dupli
       .click();
     expect((await download).suggestedFilename()).toBe("broiler-lifecycle.csv");
     h = await snap();
-    expect(h.modelVersion).toBe("broiler-reviewed-lifecycle-v2");
+    expect(h.modelVersion).toBe("broiler-reviewed-loss-biomass-v3");
     expect(
       h.events.filter((e: { kind: string }) => e.kind === "treatment"),
     ).toHaveLength(1);

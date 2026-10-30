@@ -1971,3 +1971,22 @@ textarea {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.broiler-loss,
+.broiler-loss form,
+.broiler-loss fieldset {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.broiler-lifecycle .broiler-loss table {
+  min-width: 760px;
+  table-layout: fixed;
+}
+.broiler-loss th,
+.broiler-loss td {
+  overflow-wrap: anywhere;
+}
+.broiler-loss th .helper {
+  display: block;
+  max-width: 220px;
+}

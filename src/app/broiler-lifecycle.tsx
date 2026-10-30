@@ -1,5 +1,6 @@
 "use client";
 import BroilerRecovery from "./broiler-recovery";
+import BroilerLoss from "./broiler-loss";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError, downloadReport, downloadJson } from "@/lib/client";
 import {
@@ -28,6 +29,7 @@ export default function BroilerLifecycle({
     [busy, setBusy] = useState(false),
     [stale, setStale] = useState(true),
     [recoveryPending, setRecoveryPending] = useState(false),
+    [lossPending, setLossPending] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [pending, setPending] = useState<BroilerInput | null>(null),
@@ -144,7 +146,7 @@ export default function BroilerLifecycle({
   }
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!data || pending || stale || recoveryPending) return;
+    if (!data || pending || stale || recoveryPending || lossPending) return;
     const f = new FormData(e.currentTarget),
       str = (name: string) => String(f.get(name) ?? "");
     const common = {
@@ -193,7 +195,7 @@ export default function BroilerLifecycle({
     }
     await save(parsed.data);
   }
-  const disabled = busy || !!pending || stale || recoveryPending;
+  const disabled = busy || !!pending || stale || recoveryPending || lossPending;
   return (
     <section className="panel broiler-lifecycle" aria-label="Broiler lifecycle">
       <div className="panel-heading">
@@ -262,6 +264,10 @@ export default function BroilerLifecycle({
               ["Harvested birds", data.summary.harvested],
               ["Culled birds", data.summary.culled],
               ["Measured withdrawn kg", data.summary.measuredWithdrawalKg],
+              [
+                "Measured dead-bird kg",
+                data.summary.measuredDeathKg ?? "Unknown",
+              ],
             ].map(([label, value]) => (
               <article className="stat" key={label}>
                 <span className="stat-label">{label}</span>
@@ -283,11 +289,12 @@ export default function BroilerLifecycle({
             </ul>
           )}
           <p className="helper">
-            Feed / (estimated remaining live biomass + measured cull and
-            live-harvest biomass − initial biomass). Requires complete daily
-            feed and known withdrawn biomass. Death biomass is unknown. A sample
+            Feed / (estimated remaining live biomass + measured whole-bird
+            death, cull and live-harvest biomass − initial biomass). Requires
+            complete daily feed and current measured loss evidence. A sample
             taken before a selective harvest cannot describe the remaining
-            birds.
+            birds. This cohort measure includes measured biomass lost to deaths
+            and culls; it is not a saleable-product conversion ratio.
           </p>
           <p>
             {data.summary.latestSample
@@ -365,11 +372,25 @@ export default function BroilerLifecycle({
               discrepancy.
             </p>
           )}
+          <BroilerLoss
+            snapshot={data}
+            actor={actor}
+            canReview={canReview}
+            blocked={busy || !!pending || stale || recoveryPending}
+            onPendingChange={setLossPending}
+            onSaved={async () => {
+              const d = await api<BroilerSnapshot>(endpoint);
+              await onSaved();
+              setData(d);
+              setStale(false);
+              return d;
+            }}
+          />
           <BroilerRecovery
             snapshot={data}
             actor={actor}
             canReview={canReview}
-            blocked={busy || !!pending || stale}
+            blocked={busy || !!pending || stale || lossPending}
             onPendingChange={setRecoveryPending}
             onSaved={async () => {
               const d = await api<BroilerSnapshot>(endpoint);
