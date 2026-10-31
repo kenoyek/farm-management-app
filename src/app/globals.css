@@ -2319,3 +2319,24 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.feed-review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  min-width: 0;
+  padding-block: 1rem;
+  border-block: 1px solid var(--line);
+}
+.feed-review section,
+.feed-review fieldset,
+.feed-review form {
+  min-width: 0;
+}
+.feed-review li {
+  overflow-wrap: anywhere;
+}
+.feed-review .button-row {
+  flex-wrap: wrap;
+  min-width: 0;
+}

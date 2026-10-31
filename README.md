@@ -255,3 +255,12 @@ In **Finance**, choose **Recognize a recorded feed movement**. Recognize the ori
 Accounting reversals do not move stock. Reverse dependent consumption/loss accounting first before reversing its purchase, using a date no earlier than those dependent reversals. A recognized physical movement cannot be voided until its accounting recognition is reversed, including for inventory officers. Genuine returns, late purchase costs and actual-source reconciliation require their own workflows. Current source coverage is separate from immutable date/append-prefix reports.
 
 Apply **033_feed_financial_recognition.sql** before deployment. Existing journal bounds, owner/admin/manager writes and auditor reads apply; inventory/accounts cannot read or post Finance. No worker/env/secret changes are needed. Recognition never executes payments, edits production/FCR, updates managerial cost reviews or establishes complete COGS/profit.
+
+
+### Corrected feed sources and late costs
+
+Open **Feed inventory → Feed source and late-cost reviews**. Managers may reaffirm an unchanged original consumption quantity against corrected actual daily evidence, provided all linked kg still fit that daily feed. The accepted review restores current-source eligibility in Finance, with its full proof retained in new recognition entries. It cannot clear overlinked quantities or represent a real physical return.
+
+For late purchase costs, enter the full revised actual lot total and cost evidence in its original currency. Preview consumed/lost/remaining values and differences against original stock amounts. Unknown originals remain unknown; each version is a full valuation rather than an amount to add to a previous review. Revised values do not automatically alter stock withdrawal amounts, prior journal entries or managerial cost reviews. Financial price adjustments remain an explicit subsequent workflow.
+
+Preview, confirm and save an immutable version; exact JSON/CSV remain stable after later records/settings/reviews. Pending receipts survive same-tab reload and lock new review/stock controls; stale inputs stay downloadable and require reload/fresh acknowledgement. Inventory/accounts/auditors can browse/export without approving; workers have no review access. Apply **034_feed_reconciliation_reviews.sql** before deployment. Limits: 100 versions per target/kind, 1,000 reviews/org, 10,000 input JSONB bytes, 512 KiB source snapshot, 1 MiB normalized saved report, 3 MiB CSV. No worker or environment/secret change.

@@ -1,4 +1,5 @@
 "use client";
+import FeedReviews from "./feed-reviews";
 import { useEffect, useState } from "react";
 import { api, ApiError, downloadJson, downloadReport } from "@/lib/client";
 import {
@@ -48,6 +49,7 @@ export default function FeedStock({
     [dateFilter, setDateFilter] = useState(""),
     [ack, setAck] = useState(false),
     [dirty, setDirty] = useState(false),
+    [reviewPending, setReviewPending] = useState(false),
     [pending, setPending] = useState<FeedStockInput | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -99,7 +101,8 @@ export default function FeedStock({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty, pending]);
-  const disabled = busy || !!pending || !canPost || !w,
+
+  const disabled = busy || !!pending || reviewPending || !canPost || !w,
     changed = base !== null && !!w && base !== w.expectedPosition;
   function edit() {
     if (base === null) setBase(w?.expectedPosition ?? null);
@@ -349,7 +352,7 @@ export default function FeedStock({
         <h2>Feed purchases and consumption</h2>
         <button
           className="text-button"
-          disabled={busy || !!pending}
+          disabled={busy || !!pending || reviewPending}
           onClick={() => void reload(true)}
         >
           Reload current feed stock
@@ -400,7 +403,10 @@ export default function FeedStock({
           </details>
         </div>
       )}
-      <fieldset disabled={busy || !!pending} className="feed-stock-fields">
+      <fieldset
+        disabled={busy || !!pending || reviewPending}
+        className="feed-stock-fields"
+      >
         <legend>Load reports and actual feed sources</legend>
         <div className="form-grid">
           <label>
@@ -965,6 +971,14 @@ export default function FeedStock({
           </section>
         </>
       )}
+      <FeedReviews
+        organizationId={organizationId}
+        actor={actor}
+        role={role}
+        blocked={busy || !!pending}
+        onPendingChange={setReviewPending}
+        onReviewed={() => void reload(true)}
+      />
     </section>
   );
 }

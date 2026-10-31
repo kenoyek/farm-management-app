@@ -1,4 +1,5 @@
 import { productionApi } from "@/lib/production-api";
+import { feedReviewApi } from "@/lib/feed-review-api";
 import { feedStockApi } from "@/lib/feed-stock-api";
 import { financialJournalApi } from "@/lib/financial-journal-api";
 import { feedApi } from "@/lib/feed-api";
@@ -76,6 +77,8 @@ async function handler(request: NextRequest) {
     if (!user) fail(401, "Please sign in to continue.");
     const financial = await financialJournalApi(request, user, path);
     if (financial) return financial;
+    const feedReview = await feedReviewApi(request, user, path);
+    if (feedReview) return feedReview;
     const feedStock = await feedStockApi(request, user, path);
     if (feedStock) return feedStock;
     if (path === "auth/logout" && method === "POST") {
