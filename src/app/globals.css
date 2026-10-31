@@ -2112,3 +2112,81 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.broiler-costs,
+.broiler-costs form,
+.broiler-costs fieldset {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.broiler-costs {
+  padding-block: 1rem;
+  border-block: 1px solid var(--line);
+}
+.broiler-costs .table-scroll {
+  min-width: 0;
+}
+.broiler-lifecycle .broiler-costs table {
+  min-width: 850px;
+  table-layout: fixed;
+}
+.broiler-costs th,
+.broiler-costs td {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.broiler-costs table input,
+.broiler-costs table select,
+.broiler-costs table textarea {
+  width: 100%;
+  min-width: 100px;
+}
+.broiler-costs .helper {
+  overflow-wrap: anywhere;
+}
+.broiler-costs td .helper {
+  display: block;
+}
+.broiler-costs pre {
+  max-height: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.broiler-costs .cost-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+.broiler-costs .cost-check input {
+  width: auto;
+  min-height: auto;
+  margin-top: 0.25rem;
+}
+.broiler-costs .cost-metrics {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+.broiler-costs .cost-metrics dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.broiler-costs .cost-metrics dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.broiler-costs .broiler-fields {
+  border-color: var(--line);
+}
+.broiler-costs .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 600px) {
+  .broiler-costs .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

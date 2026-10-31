@@ -1,4 +1,5 @@
 import { readBroilerSource } from "./broiler-source";
+import { broilerCostsApi } from "./broiler-costs-api";
 import { broilerProductsApi } from "./broiler-products-api";
 import { broilerProcessingApi } from "./broiler-processing-api";
 import { broilerPlanningApi } from "./broiler-planning-api";
@@ -26,6 +27,8 @@ export async function broilerApi(
   user: { id: string },
   path: string,
 ) {
+  const costs = await broilerCostsApi(request, user, path);
+  if (costs) return costs;
   const products = await broilerProductsApi(request, user, path);
   if (products) return products;
   const processing = await broilerProcessingApi(request, user, path);

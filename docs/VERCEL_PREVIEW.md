@@ -179,3 +179,8 @@ Apply migrations **026_broiler_product_stock.sql** and **027_product_harvest_gui
 
 
 Hosted product verification passed at deployment `d05a25d` (READY, stable alias matched): 43 public API/Chromium checks, independent full Decimal/CSV/SHA-256 replay of eleven movements/two lots, unchanged actual live cohort/FCR and historical plan/budget bytes. GitHub Actions 41178036459 passed all migration/runtime, 385 application/database, 47 Python and 24 production-browser checks plus lint/types/build. The final dated-ownership wording retains the same API, scope and report model; verify the final deployment SHA/stable alias after pushing its evidence update.
+
+
+## Reviewed broiler actual cost allocation update
+
+Apply migrations **028_broiler_actual_cost_reviews.sql** and **029_cost_snapshot_search_path.sql** using the dedicated preview admin transport before deploying the app. It adds immutable RLS actual-cost review chains and the invoker complete operational/product snapshot function, with exact source-token/head/role/tenant/shape/evidence/amount guards. No Python worker or secret/environment change is needed. Validate restricted runtime, 405 application/database tests, 47 Python checks, lint/types/build and 25 production-mode browser workflows. Hosted verification must use only private labeled synthetic accounts via public APIs; original workbooks, real records and financial balances remain unchanged. Exact saved cost exports must remain stable through later actual operations/settings/reviews, with current-source status outside the immutable digest.
