@@ -3,6 +3,7 @@ import { useDialog } from "@/lib/use-dialog";
 import Team from "./team";
 import EggInventory from "./egg-inventory";
 import Production from "./production";
+import FinancialJournal from "./financial-journal";
 import Projections from "./projections";
 import FeedStudio from "./feed-studio";
 import { api } from "@/lib/client";
@@ -16,6 +17,7 @@ import {
   ChartNoAxesCombined,
   Settings,
   ClipboardList,
+  BookOpen,
   LogOut,
   ArrowUpRight,
   Plus,
@@ -333,25 +335,34 @@ export default function Workspace() {
             [Warehouse, "Egg inventory"],
             [FlaskConical, "Feed studio"],
             [ChartNoAxesCombined, "Projections"],
+            [BookOpen, "Finance"],
             [Settings, "Settings"],
-          ].map(([Icon, label]) => {
-            const I = Icon as typeof Sprout;
-            return (
-              <button
-                key={String(label)}
-                className={view === label ? "nav-item active" : "nav-item"}
-                onClick={() => {
-                  setView(String(label));
-                  setMobile(false);
-                  setError("");
-                }}
-              >
-                <I size={19} />
-                {String(label)}
-                {view === label && <span className="nav-dot" />}
-              </button>
-            );
-          })}
+          ]
+            .filter(
+              ([, label]) =>
+                label !== "Finance" ||
+                ["owner", "admin", "manager", "auditor"].includes(
+                  org?.role ?? "",
+                ),
+            )
+            .map(([Icon, label]) => {
+              const I = Icon as typeof Sprout;
+              return (
+                <button
+                  key={String(label)}
+                  className={view === label ? "nav-item active" : "nav-item"}
+                  onClick={() => {
+                    setView(String(label));
+                    setMobile(false);
+                    setError("");
+                  }}
+                >
+                  <I size={19} />
+                  {String(label)}
+                  {view === label && <span className="nav-dot" />}
+                </button>
+              );
+            })}
         </nav>
         <div className="sidebar-bottom">
           <div className="grow-card">
@@ -444,13 +455,15 @@ export default function Workspace() {
                     ? "Room to grow."
                     : view === "Settings"
                       ? "Your workspace, your way."
-                      : view === "Production"
-                        ? "A record of every day."
-                        : view === "Egg inventory"
-                          ? "Every egg accounted for."
-                          : view === "Feed studio"
-                            ? "Better feed starts here."
-                            : "Plan the season ahead."}
+                      : view === "Finance"
+                        ? "Every posting has two sides."
+                        : view === "Production"
+                          ? "A record of every day."
+                          : view === "Egg inventory"
+                            ? "Every egg accounted for."
+                            : view === "Feed studio"
+                              ? "Better feed starts here."
+                              : "Plan the season ahead."}
               </h1>
               <p className="muted">
                 {view === "Overview"
@@ -459,13 +472,15 @@ export default function Workspace() {
                     ? "Manage every location from one organization."
                     : view === "Settings"
                       ? "Organization details, access and account information."
-                      : view === "Production"
-                        ? "Track your flocks, batches and ponds with real daily records."
-                        : view === "Egg inventory"
-                          ? "Receive collections, reconcile physical stock and record egg sales."
-                          : view === "Feed studio"
-                            ? "Build a recipe with transparent nutrition and cost calculations."
-                            : "Explore feed needs and egg production with explicit assumptions."}
+                      : view === "Finance"
+                        ? "Review balanced entries, recorded sale recognition and original-currency trial balances."
+                        : view === "Production"
+                          ? "Track your flocks, batches and ponds with real daily records."
+                          : view === "Egg inventory"
+                            ? "Receive collections, reconcile physical stock and record egg sales."
+                            : view === "Feed studio"
+                              ? "Build a recipe with transparent nutrition and cost calculations."
+                              : "Explore feed needs and egg production with explicit assumptions."}
               </p>
             </div>
             {(view === "Overview" || view === "My farms") && (
@@ -812,6 +827,20 @@ export default function Workspace() {
                   </div>
                 </>
               )}
+              {view === "Finance" &&
+                (["owner", "admin", "manager", "auditor"].includes(org.role) ? (
+                  <FinancialJournal
+                    key={`${orgId}:${user.email}`}
+                    organizationId={orgId}
+                    actor={user.email}
+                    role={org.role}
+                  />
+                ) : (
+                  <p className="notice">
+                    Your current role cannot access this organization&apos;s
+                    financial journal.
+                  </p>
+                ))}
               {view === "Production" && (
                 <Production
                   actor={user.email}

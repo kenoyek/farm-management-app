@@ -96,6 +96,19 @@ export async function broilerProductsApi(
     }
     const current = await report(c, p.organizationId, p.unitId);
     if (
+      p.data.kind === "void" &&
+      (
+        await c.query(
+          "SELECT financial_sale_is_booked($1,'product',$2) AS booked",
+          [p.organizationId, p.data.voidOfId],
+        )
+      ).rows[0].booked
+    )
+      fail(
+        409,
+        "Reverse the financial sale recognition before voiding its operational source. Accounting reversals do not move cash or physical stock.",
+      );
+    if (
       p.expectedPosition !== current.results.expectedPosition ||
       p.expectedSourcePosition !== current.expectedSourcePosition ||
       p.expectedDailyId !== current.expectedDailyId

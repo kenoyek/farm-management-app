@@ -1,4 +1,5 @@
 import { productionApi } from "@/lib/production-api";
+import { financialJournalApi } from "@/lib/financial-journal-api";
 import { feedApi } from "@/lib/feed-api";
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
@@ -72,6 +73,8 @@ async function handler(request: NextRequest) {
     const token = request.cookies.get(cookieName)?.value;
     const user = await sessionUser(token);
     if (!user) fail(401, "Please sign in to continue.");
+    const financial = await financialJournalApi(request, user, path);
+    if (financial) return financial;
     if (path === "auth/logout" && method === "POST") {
       await pool.query("DELETE FROM sessions WHERE token_hash=$1", [
         tokenHash(token!),

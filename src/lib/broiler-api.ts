@@ -160,6 +160,18 @@ export async function broilerApi(
         fail(409, "This harvest reference is already recorded.");
     }
     if (p.kind === "void") {
+      if (
+        (
+          await c.query(
+            "SELECT financial_sale_is_booked($1,'live',$2) AS booked",
+            [p.organizationId, p.voidOfId],
+          )
+        ).rows[0].booked
+      )
+        fail(
+          409,
+          "Reverse the financial sale recognition before voiding its operational source. Accounting reversals do not move cash or physical stock.",
+        );
       const original = (
         await c.query(
           "SELECT * FROM active_broiler_events WHERE id=$1 AND organization_id=$2 AND unit_id=$3",

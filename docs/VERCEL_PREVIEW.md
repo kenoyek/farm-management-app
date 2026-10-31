@@ -187,3 +187,8 @@ Apply migrations **028_broiler_actual_cost_reviews.sql** and **029_cost_snapshot
 
 
 Hosted incurred-cost verification passed at deployment `cb04e58` (READY, stable alias matched): 44 public API/Chromium checks and independent complete Decimal/CSV/SHA-256/PostgreSQL-token replay for original and final saved reviews. Historical cost/plan/budget export bytes remain immutable through later source/settings/review changes; current-source status stays separate. GitHub Actions 41180857069 passed all migrations/runtime, 405 application/database, 47 Python and 25 browser checks plus lint/types/build. No worker/env/secret changes were needed. Verify the final documentation-only deployment SHA and stable alias after its evidence push.
+
+
+## Balanced financial journal deployment
+
+Apply **030_financial_journal.sql** and **031_financial_source_consistency.sql** through the dedicated Neon preview admin transport before deploying. These additive migrations retain invoker RLS and add immutable balanced entries, original-value source recognition, reversal and transaction-end physical-source consistency. No worker redeployment, environment change or secret rotation is required. Validate 430 application/database tests, 47 Python checks, 26 production-mode Chromium workflows, lint/types/build and restricted runtime. Verify the exact Git SHA, READY state and stable alias; then exercise Finance through private labeled synthetic public API/browser fixtures, including original currency, frozen evidence, source protection/reversal, tenant/role denial and mobile layout. Never point local test cleanup at hosted Neon.

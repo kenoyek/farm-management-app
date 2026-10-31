@@ -226,3 +226,12 @@ Preview without saving, then confirm and save an immutable review. Each version 
 Apply migrations **028_broiler_actual_cost_reviews.sql** and **029_cost_snapshot_search_path.sql** before deploying this phase. Limits: 100 review versions per batch, 40 explicit lot allocations per review, 64,000 input JSON bytes, 512 KiB frozen actual-source snapshot and 1 MiB normalized saved report. Older exact-version downloads remain available even if current batch history exceeds the snapshot bound. No Python worker redeployment is needed.
 
 These are managerial reviews of supplied incurred cost totals and explicit lot allocations. They do not post expenses, purchases, feed inventory valuation, financial COGS, cash, journals or profit. Original-currency live/product sales stay separate from the cost schedule. Balanced financial ledgers and explicit inventory/expense recognition remain prerequisites for realized profitability reporting.
+
+
+### Financial journal and trial balance
+
+Open **Finance** as an owner, administrator, manager or auditor. Managers can preview and confirm balanced, evidenced manual entries; explicitly recognize an active priced live/processed broiler sale in its original currency as a receivable or evidenced cash/bank receipt; and append exact accounting reversals. Auditors can read/export; workers cannot access financial records. Recognition freezes the actual sale evidence and prevents operational void until its recognition is reversed. Reversal alone never changes stock or transfers money.
+
+Reports show currency-separated movements and net balances. Select both an accounting date and append-position cutoff for stable JSON/CSV evidence, including after later backdated entries. Pending exact receipts survive same-tab reload; stale working inputs remain downloadable and require explicit reload/fresh confirmation. Cash, costs and valuations are supplied evidence, not automatic bank reconciliation or proof of complete books. Cost reviews and forecasts never auto-post; procurement/feed valuation, customer payment matching, period controls and reconciled profitability remain outstanding.
+
+Apply migrations **030_financial_journal.sql** and **031_financial_source_consistency.sql** before deploying this phase. Bound: 1,000 entries/org, 2–20 distinct account lines/manual entry, 20,000 input JSONB bytes, 32 KiB source snapshot, 1 MiB normalized JSON evidence and 3 MiB CSV. No worker or environment/secret change is needed.

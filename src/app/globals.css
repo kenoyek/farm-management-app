@@ -2190,3 +2190,73 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.financial-journal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  min-width: 0;
+}
+.financial-journal section,
+.financial-journal label {
+  min-width: 0;
+}
+.financial-journal form,
+.financial-journal .finance-fields {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.financial-journal .finance-fields {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+}
+.financial-journal .table-scroll {
+  min-width: 0;
+}
+.financial-journal table {
+  min-width: 800px;
+  table-layout: fixed;
+}
+.financial-journal td,
+.financial-journal th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.financial-journal table input,
+.financial-journal table select {
+  min-width: 100px;
+  width: 100%;
+}
+.financial-journal .helper {
+  overflow-wrap: anywhere;
+}
+.financial-journal td .helper {
+  display: block;
+}
+.financial-journal pre {
+  max-height: 24rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: auto;
+}
+.financial-journal .finance-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+.financial-journal .finance-check input {
+  width: auto;
+  min-height: auto;
+  margin-top: 0.25rem;
+}
+.financial-journal .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 600px) {
+  .financial-journal .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

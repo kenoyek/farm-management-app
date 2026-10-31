@@ -130,3 +130,12 @@ Saved cost exports read only the exact immutable row, recompute the fixed v1 all
 
 
 Migration 029 fixes the actual-cost snapshot and insert-validator search paths to `public,pg_temp`, retaining caller RLS while preventing temporary-table schema shadowing of the source queries. A real runtime integration test uses empty shadow tables and a caller-selected `pg_temp,public` path; the stored source still matches the real application records exactly. No broader role grant is introduced.
+
+
+## Immutable balanced financial journal
+
+Migrations 030/031 add tenant-scoped `financial_journal_entries` and invoker source helpers with fixed `public,pg_temp` search paths. Only owner/admin/manager/auditor reads and current owner/admin/manager actor/time inserts are granted; runtime UPDATE/DELETE are denied. The validator independently derives normalized input, source snapshot, currency/date/amount/cost center, lines, chart/model and monotonic position rather than trusting caller-derived fields. Manual lines balance exactly; reserved broiler income accounts require genuine source recognition. Unique references, one reversal per original, no reversal of a reversal, original-currency opposite lines and per-organization limits are enforced.
+
+Writers acquire the existing unit lock before the organization financial-head lock. Source void guards use the same order. Deferred constraints check that no active recognition duplicates or outlives an active original sale at transaction commit, covering PostgreSQL statement-snapshot races. Explicit API head comparison, exact normalized receipt replay, required report-bound validation and audit share the transaction. Direct writes retain all source/role/line guards. Fixed-schema temporary-table shadow tests prove source derivation stays within actual RLS records.
+
+Reports retain all original/reversal entries whose date and append position meet the frozen cutoffs; later reverse/backdated rows never retroactively change an old prefix. Trial balances and evidence hashes use original four-place amounts with currencies separated. Current source coverage is outside report evidence. Financial postings do not append stock, product or scientific records. Manual valuation remains supplied evidence; automatic procurement/feed valuation and payment/period reconciliation are not implemented.
