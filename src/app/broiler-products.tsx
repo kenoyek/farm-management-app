@@ -504,7 +504,7 @@ export default function BroilerProducts({
               />
               <span>
                 {kind === "receipt"
-                  ? "I confirm this whole output is owned and physically available now, with no earlier receipt, sale, loss or other disposition outside this ledger. Evidence supports this stock assertion."
+                  ? "I confirm this whole output was owned and physically available on the recorded receipt date, with no earlier receipt, sale, loss or other disposition outside this ledger. Evidence supports this dated stock assertion."
                   : kind === "void"
                     ? "This entry was erroneous; its physical receipt or withdrawal did not occur. This correction is not a customer return, cash refund or physical stock return."
                     : "I confirm the measured quantity and physical dispatch or loss against this lot. This records supplied evidence without release or financial certification."}
