@@ -123,6 +123,34 @@ export const journalData = z.discriminatedUnion("kind", [
             "Cash recognition requires receipt evidence; receivable recognition must not claim cash received.",
         });
     }),
+  z
+    .strictObject({
+      kind: z.literal("recognize_feed"),
+      sourceId: uuid,
+      purchaseSettlement: z.enum(["payables", "cash_bank"]).nullable(),
+      consumptionTreatment: z.enum(["expense", "work_in_progress"]).nullable(),
+      paymentEvidence: z.string().trim().max(1000).nullable(),
+      policy: z.literal("recorded-feed-lot-value-v1"),
+      ...evidence,
+    })
+    .superRefine((p, c) => {
+      if (p.purchaseSettlement !== null && p.consumptionTreatment !== null)
+        c.addIssue({
+          code: "custom",
+          message:
+            "Choose only the treatment appropriate to the original feed movement.",
+        });
+      if (
+        p.purchaseSettlement === "cash_bank"
+          ? (p.paymentEvidence?.length ?? 0) < 3
+          : p.paymentEvidence !== null
+      )
+        c.addIssue({
+          code: "custom",
+          message:
+            "Cash/bank purchases require payment evidence; other feed entries must not claim payment.",
+        });
+    }),
   z.strictObject({
     kind: z.literal("reverse"),
     originalId: uuid,
@@ -158,7 +186,7 @@ export type JournalEntry = {
   description: string;
   lines: JournalLine[];
   input: JournalData;
-  source_kind: "live" | "product" | null;
+  source_kind: "live" | "product" | "feed" | null;
   source_id: string | null;
   source_snapshot: Record<string, unknown> | null;
   reversal_of_id: string | null;
@@ -197,6 +225,14 @@ export type JournalWorkspace = {
   sourceMatches: number;
   unrecognizedSales: number;
   activeSales: number;
+  feedSources: FinancialFeedSource[];
+  feedSourceMatches: number;
+  feedCoverage: {
+    active: number;
+    recognized: number;
+    unknown: number;
+    changed: number;
+  };
   units: { id: string; name: string }[];
   reversible: Pick<
     JournalEntry,
@@ -369,4 +405,58 @@ export function journalCsv(r: JournalReport) {
         .join(","),
     )
     .join("\r\n");
+}
+
+export type FinancialFeedSource = {
+  source_id: string;
+  lot_id: string;
+  unit_id: string | null;
+  kind: "receipt" | "consume" | "loss";
+  recorded_on: string;
+  currency: string;
+  amount: string | null;
+  weight_kg: string;
+  feed_name: string;
+  reference: string;
+  recognized_id: string | null;
+  receipt_recognized_id: string | null;
+  source_current: boolean;
+  eligible: boolean;
+};
+export function feedRecognitionLines(
+  amount: string,
+  kind: FinancialFeedSource["kind"],
+  purchase: "payables" | "cash_bank" | null,
+  treatment: "expense" | "work_in_progress" | null,
+): JournalLine[] {
+  if (
+    (kind === "receipt" && (!purchase || treatment !== null)) ||
+    (kind === "consume" && (purchase !== null || !treatment)) ||
+    (kind === "loss" && (purchase !== null || treatment !== null))
+  )
+    throw Error("Choose the treatment for this feed movement.");
+  return [
+    {
+      account:
+        kind === "receipt"
+          ? "1200"
+          : kind === "loss"
+            ? "5200"
+            : treatment === "expense"
+              ? "5000"
+              : "1300",
+      side: "debit",
+      amount: new D(amount).toFixed(4),
+    },
+    {
+      account:
+        kind === "receipt"
+          ? purchase === "cash_bank"
+            ? "1000"
+            : "2000"
+          : "1200",
+      side: "credit",
+      amount: new D(amount).toFixed(4),
+    },
+  ];
 }

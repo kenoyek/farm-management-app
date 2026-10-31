@@ -16,6 +16,7 @@ import {
   type JournalReport,
   type JournalInput,
   type FinancialSource,
+  type FinancialFeedSource,
   type JournalWorkspace,
 } from "./financial-journal";
 const headers = {
@@ -107,6 +108,14 @@ async function lockEntry(c: PoolClient, p: JournalInput) {
           [p.organizationId, p.data.sourceId],
         )
       ).rows[0]?.unit_id ?? null;
+  else if (p.data.kind === "recognize_feed")
+    unit =
+      (
+        await c.query(
+          "SELECT unit_id FROM feed_stock_events WHERE organization_id=$1 AND id=$2",
+          [p.organizationId, p.data.sourceId],
+        )
+      ).rows[0]?.unit_id ?? null;
   else
     unit =
       (
@@ -116,6 +125,19 @@ async function lockEntry(c: PoolClient, p: JournalInput) {
         )
       ).rows[0]?.unit_id ?? null;
   if (unit) await c.query("SELECT pg_advisory_xact_lock(hashtext($1))", [unit]);
+  const feed =
+    p.data.kind === "recognize_feed" ||
+    (p.data.kind === "reverse" &&
+      (
+        await c.query(
+          "SELECT source_kind FROM financial_journal_entries WHERE organization_id=$1 AND id=$2",
+          [p.organizationId, p.data.originalId],
+        )
+      ).rows[0]?.source_kind === "feed");
+  if (feed)
+    await c.query("SELECT pg_advisory_xact_lock(813,hashtext($1))", [
+      p.organizationId,
+    ]);
   await c.query("SELECT pg_advisory_xact_lock(812,hashtext($1))", [
     p.organizationId,
   ]);
@@ -176,6 +198,18 @@ export async function financialJournalApi(
           [org],
         )
       ).rows[0];
+      const feedRows = (
+        await c.query(
+          `SELECT s.*,s.recorded_on::text,count(*) OVER()::int AS matches FROM financial_feed_sources s WHERE s.organization_id=$1 AND (s.feed_name ILIKE $2 OR s.reference ILIKE $2) AND ($3='all' OR s.recognized_id IS NULL) ORDER BY s.recorded_on DESC,s.source_id LIMIT 200`,
+          [org, needle, status],
+        )
+      ).rows;
+      const feedCoverage = (
+        await c.query(
+          "SELECT count(*)::int AS active,count(*) FILTER(WHERE recognized_id IS NOT NULL)::int AS recognized,count(*) FILTER(WHERE amount IS NULL)::int AS unknown,count(*) FILTER(WHERE NOT coalesce(source_current,false))::int AS changed FROM financial_feed_sources WHERE organization_id=$1",
+          [org],
+        )
+      ).rows[0];
       const units = (
         await c.query(
           "SELECT id,name FROM production_units WHERE organization_id=$1 AND kind='broilers' ORDER BY stocked_on DESC,id LIMIT 1000",
@@ -197,6 +231,22 @@ export async function financialJournalApi(
           matches: undefined,
         })) as FinancialSource[],
         sourceMatches: rows[0]?.matches ?? 0,
+        feedSources: feedRows.map((row) => ({
+          ...row,
+          recorded_on:
+            typeof row.recorded_on === "string"
+              ? row.recorded_on
+              : row.recorded_on.toISOString().slice(0, 10),
+          matches: undefined,
+          source_current: !!row.source_current,
+          eligible:
+            row.amount !== null &&
+            !row.recognized_id &&
+            !!row.source_current &&
+            (row.kind === "receipt" || !!row.receipt_recognized_id),
+        })) as FinancialFeedSource[],
+        feedSourceMatches: feedRows[0]?.matches ?? 0,
+        feedCoverage,
         activeSales: counts.active,
         unrecognizedSales: counts.unrecognized,
         units,
@@ -260,6 +310,49 @@ export async function financialJournalApi(
         fail(
           409,
           "This recorded sale is missing, voided or already recognized. Keep a working copy and reload the source list.",
+        );
+    }
+    if (p.data.kind === "reverse") {
+      const original = (
+        await c.query(
+          "SELECT source_kind,source_snapshot->'event'->>'kind' AS feed_kind FROM financial_journal_entries WHERE organization_id=$1 AND id=$2",
+          [p.organizationId, p.data.originalId],
+        )
+      ).rows[0];
+      if (
+        original?.source_kind === "feed" &&
+        original.feed_kind === "receipt"
+      ) {
+        const deps = (
+          await c.query(
+            "SELECT count(*) FILTER(WHERE r.id IS NULL)::int AS active,max(r.posted_on)::text AS last_day FROM financial_journal_entries e LEFT JOIN financial_journal_entries r ON r.reversal_of_id=e.id WHERE e.organization_id=$1 AND e.kind='recognize_feed' AND e.source_snapshot->>'purchaseRecognitionId'=$2",
+            [p.organizationId, p.data.originalId],
+          )
+        ).rows[0];
+        if (deps.active > 0 || (deps.last_day && p.data.date < deps.last_day))
+          fail(
+            409,
+            "Reverse dependent feed consumption/loss recognition first. The purchase reversal date must be no earlier than those accounting reversals.",
+          );
+      }
+    }
+    if (p.data.kind === "recognize_feed") {
+      const s = (
+        await c.query(
+          "SELECT * FROM financial_feed_sources WHERE organization_id=$1 AND source_id=$2",
+          [p.organizationId, p.data.sourceId],
+        )
+      ).rows[0];
+      if (
+        !s ||
+        s.recognized_id ||
+        s.amount === null ||
+        !s.source_current ||
+        (s.kind !== "receipt" && !s.receipt_recognized_id)
+      )
+        fail(
+          409,
+          "This feed movement is missing, unknown-cost, already recognized, source-changed or needs its purchase recognized first. Keep your inputs and reload sources.",
         );
     }
     await c.query(

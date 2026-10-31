@@ -246,3 +246,12 @@ Consumption uses the explicitly chosen lot's remaining known cost in proportion 
 Preview and confirm each movement. Pending receipts survive same-tab reload for exact retry; stale inputs remain downloadable and require explicit reload/fresh acknowledgement. Freeze both report date and append cutoff for exact JSON/CSV, full source snapshots and reproducible hashes after later/backdated entries. Source-picker batch/date filters do not change the organization-wide valuation report.
 
 Apply **032_feed_procurement_stock.sql** before deployment. Bounds: 1,000 events/org, 10,000 input JSONB bytes, 16 KiB actual-source snapshot, 1 MiB normalized report evidence, 3 MiB CSV. No worker or secret changes. This phase does not post feed inventory/expenses to Finance, infer prices from recipes or forecasts, change actual production feed or establish profit. Explicit inventory financial recognition, late cost/source reconciliation, supplier returns/transfers/counts and procurement invoice/payment matching remain separate work.
+
+
+### Book feed inventory, consumption and losses
+
+In **Finance**, choose **Recognize a recorded feed movement**. Recognize the original known-cost purchase first: debit feed inventory and choose payables or evidenced cash/bank payment. Then recognize actual consumption as explicitly selected production expense or work in progress, or recognize recorded loss as stock-loss expense; both credit feed inventory. The database derives original dates, currencies, values, source snapshots and exact purchase lineage. Known zero is explicit; unknown costs and changed/overlinked actual feed are ineligible for new recognition. Review existing manual book entries to avoid double booking.
+
+Accounting reversals do not move stock. Reverse dependent consumption/loss accounting first before reversing its purchase, using a date no earlier than those dependent reversals. A recognized physical movement cannot be voided until its accounting recognition is reversed, including for inventory officers. Genuine returns, late purchase costs and actual-source reconciliation require their own workflows. Current source coverage is separate from immutable date/append-prefix reports.
+
+Apply **033_feed_financial_recognition.sql** before deployment. Existing journal bounds, owner/admin/manager writes and auditor reads apply; inventory/accounts cannot read or post Finance. No worker/env/secret changes are needed. Recognition never executes payments, edits production/FCR, updates managerial cost reviews or establishes complete COGS/profit.

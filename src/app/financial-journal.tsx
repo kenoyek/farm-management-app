@@ -7,6 +7,8 @@ import {
   journalInput,
   journalPurposes,
   recognitionLines,
+  feedRecognitionLines,
+  type FinancialFeedSource,
   reverseLines,
   type JournalInput,
   type JournalData,
@@ -47,6 +49,14 @@ export default function FinancialJournal({
     [description, setDescription] = useState(""),
     [lines, setLines] = useState(blankLines),
     [source, setSource] = useState<FinancialSource | null>(null),
+    [feedSource, setFeedSource] = useState<FinancialFeedSource | null>(null),
+    [purchaseSettlement, setPurchaseSettlement] = useState<
+      "payables" | "cash_bank" | ""
+    >(""),
+    [consumptionTreatment, setConsumptionTreatment] = useState<
+      "expense" | "work_in_progress" | ""
+    >(""),
+    [paymentEvidence, setPaymentEvidence] = useState(""),
     [original, setOriginal] = useState<Original | null>(null),
     [settlement, setSettlement] = useState(""),
     [cashEvidence, setCashEvidence] = useState(""),
@@ -190,6 +200,21 @@ export default function FinancialJournal({
         policy: "recorded-dispatch-value-v1",
         ...common,
       };
+    if (mode === "recognize_feed")
+      return {
+        kind: mode,
+        sourceId: feedSource?.source_id,
+        purchaseSettlement:
+          feedSource?.kind === "receipt" ? purchaseSettlement || null : null,
+        consumptionTreatment:
+          feedSource?.kind === "consume" ? consumptionTreatment || null : null,
+        paymentEvidence:
+          feedSource?.kind === "receipt" && purchaseSettlement === "cash_bank"
+            ? paymentEvidence
+            : null,
+        policy: "recorded-feed-lot-value-v1",
+        ...common,
+      };
     return { kind: mode, originalId: original?.id, date, ...common };
   }
   async function save(p: JournalInput) {
@@ -208,6 +233,10 @@ export default function FinancialJournal({
       setBase(null);
       setLines(blankLines());
       setSource(null);
+      setFeedSource(null);
+      setPurchaseSettlement("");
+      setConsumptionTreatment("");
+      setPaymentEvidence("");
       setOriginal(null);
       setReference("");
       setDescription("");
@@ -234,6 +263,19 @@ export default function FinancialJournal({
   }
   function submit(saving: boolean) {
     if (disabled || changed) return;
+    if (
+      mode === "recognize_feed" &&
+      (!feedSource ||
+        !feedSource.eligible ||
+        feedSource.amount === null ||
+        (feedSource.kind === "receipt" && !purchaseSettlement) ||
+        (feedSource.kind === "consume" && !consumptionTreatment))
+    ) {
+      setError(
+        "Choose an eligible known-value feed movement and its explicit accounting treatment. Recognize the purchase first; changed actual-feed sources require reconciliation.",
+      );
+      return;
+    }
     const p = journalData.safeParse(data());
     if (!p.success) {
       setError(p.error.issues.map((i) => i.message).join(" "));
@@ -254,6 +296,21 @@ export default function FinancialJournal({
             source.amount,
             source.source_kind,
             p.data.settlement,
+          ),
+        });
+      else if (
+        p.data.kind === "recognize_feed" &&
+        feedSource &&
+        feedSource.amount !== null
+      )
+        setPreview({
+          currency: feedSource.currency,
+          date: feedSource.recorded_on,
+          lines: feedRecognitionLines(
+            feedSource.amount,
+            feedSource.kind,
+            p.data.purchaseSettlement,
+            p.data.consumptionTreatment,
           ),
         });
       else if (p.data.kind === "reverse" && original)
@@ -339,11 +396,11 @@ export default function FinancialJournal({
       </div>
       <p className="helper">
         Post evidenced, balanced book entries in one original currency. Source
-        recognition currently covers recorded live and processed broiler sales;
-        it preserves the original value/date and distinguishes receivables from
-        explicitly evidenced cash received. It does not dispatch stock or move
-        bank funds. Managerial cost reviews, recipes and forecasts never post
-        accounts automatically.
+        recognition covers recorded broiler sales and feed purchases,
+        consumption and losses; it preserves original dates, currencies and
+        values with explicit accounting treatments. It does not dispatch stock
+        or move bank funds. Managerial cost reviews, recipes and forecasts never
+        post accounts automatically.
       </p>
       <p className="helper">
         Manual entries can record purchases, consumption, expenses, cost
@@ -389,7 +446,7 @@ export default function FinancialJournal({
         </div>
       )}
       <fieldset className="finance-fields" disabled={busy || !!pending}>
-        <legend>Load trial balance and recorded sale sources</legend>
+        <legend>Load trial balance and recorded sources</legend>
         <div className="form-grid">
           <label>
             Journal as-of date
@@ -411,7 +468,7 @@ export default function FinancialJournal({
             />
           </label>
           <label>
-            Search sale reference, customer or batch
+            Search sale or feed sources
             <input
               value={search}
               maxLength={80}
@@ -419,13 +476,13 @@ export default function FinancialJournal({
             />
           </label>
           <label>
-            Recorded sale source filter
+            Recorded source filter
             <select
               value={sourceStatus}
               onChange={(e) => setSourceStatus(e.target.value)}
             >
-              <option value="unrecognized">Unrecognized sales</option>
-              <option value="all">All active sales</option>
+              <option value="unrecognized">Unrecognized sources</option>
+              <option value="all">All active sources</option>
             </select>
           </label>
         </div>
@@ -441,6 +498,16 @@ export default function FinancialJournal({
             {workspace.sources.length} of {workspace.sourceMatches} matching
             sources. Coverage is current loaded state; it is separate from the
             trial-balance date/position limits.
+          </p>
+          <p className="notice">
+            Feed recognition: {workspace.feedCoverage.recognized} of{" "}
+            {workspace.feedCoverage.active} active movements recognized;{" "}
+            {workspace.feedCoverage.unknown} unknown-value and{" "}
+            {workspace.feedCoverage.changed} changed-source movements. Showing{" "}
+            {workspace.feedSources.length} of {workspace.feedSourceMatches} feed
+            matches using the same reference/feed-name search and recognition
+            filter above. Current coverage is outside frozen report evidence; it
+            does not establish complete inventory books.
           </p>
           {canPost ? (
             <form
@@ -462,6 +529,9 @@ export default function FinancialJournal({
                     }}
                   >
                     <option value="manual">Manual balanced entry</option>
+                    <option value="recognize_feed">
+                      Recognize a recorded feed movement
+                    </option>
                     <option value="recognize_sale">
                       Recognize a recorded broiler sale
                     </option>
@@ -776,6 +846,155 @@ export default function FinancialJournal({
                     </p>
                   </>
                 )}
+                {mode === "recognize_feed" && (
+                  <>
+                    <label>
+                      Recorded feed movement
+                      <select
+                        value={feedSource?.source_id ?? ""}
+                        onChange={(e) => {
+                          edit();
+                          setFeedSource(
+                            workspace.feedSources.find(
+                              (s) => s.source_id === e.target.value,
+                            ) ?? null,
+                          );
+                          setPurchaseSettlement("");
+                          setConsumptionTreatment("");
+                          setPaymentEvidence("");
+                          setBase(workspace.expectedPosition);
+                        }}
+                        required
+                      >
+                        <option value="">
+                          Choose an eligible feed movement
+                        </option>
+                        {feedSource &&
+                          !workspace.feedSources.some(
+                            (s) => s.source_id === feedSource.source_id,
+                          ) && (
+                            <option value={feedSource.source_id}>
+                              {feedSource.reference} · previously selected;
+                              reload/review
+                            </option>
+                          )}
+                        {workspace.feedSources.map((s) => (
+                          <option
+                            key={s.source_id}
+                            value={s.source_id}
+                            disabled={!s.eligible}
+                          >
+                            {s.kind} · {s.feed_name} · {s.reference} ·{" "}
+                            {s.recorded_on} · {s.weight_kg} kg · {s.currency}{" "}
+                            {s.amount ?? "Unknown value"}
+                            {s.recognized_id
+                              ? " · recognized"
+                              : s.amount === null
+                                ? " · unknown cost"
+                                : !s.source_current
+                                  ? " · source changed"
+                                  : s.kind !== "receipt" &&
+                                      !s.receipt_recognized_id
+                                    ? " · recognize purchase first"
+                                    : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {feedSource && (
+                      <p className="notice">
+                        Original feed {feedSource.kind}:{" "}
+                        {feedSource.recorded_on} · {feedSource.currency}{" "}
+                        {feedSource.amount ?? "Unknown value"} ·{" "}
+                        {feedSource.weight_kg} kg. Date, value, original
+                        currency and source evidence are derived again when
+                        posted.
+                      </p>
+                    )}
+                    {feedSource?.kind === "receipt" && (
+                      <>
+                        <label>
+                          Feed purchase settlement
+                          <select
+                            value={purchaseSettlement}
+                            onChange={(e) => {
+                              edit();
+                              setPurchaseSettlement(
+                                e.target.value as typeof purchaseSettlement,
+                              );
+                            }}
+                            required
+                          >
+                            <option value="">
+                              Choose evidenced settlement
+                            </option>
+                            <option value="payables">
+                              Trade payable · payment not claimed
+                            </option>
+                            <option value="cash_bank">
+                              Cash/bank paid · payment evidence required
+                            </option>
+                          </select>
+                        </label>
+                        {purchaseSettlement === "cash_bank" && (
+                          <label>
+                            Feed purchase payment evidence
+                            <textarea
+                              value={paymentEvidence}
+                              onChange={(e) => {
+                                edit();
+                                setPaymentEvidence(e.target.value);
+                              }}
+                              maxLength={1000}
+                              required
+                            />
+                          </label>
+                        )}
+                      </>
+                    )}
+                    {feedSource?.kind === "consume" && (
+                      <label>
+                        Consumed-feed accounting treatment
+                        <select
+                          value={consumptionTreatment}
+                          onChange={(e) => {
+                            edit();
+                            setConsumptionTreatment(
+                              e.target.value as typeof consumptionTreatment,
+                            );
+                          }}
+                          required
+                        >
+                          <option value="">
+                            Choose the evidenced cost policy
+                          </option>
+                          <option value="expense">
+                            Production expense · debit 5000
+                          </option>
+                          <option value="work_in_progress">
+                            Production work in progress · debit 1300
+                          </option>
+                        </select>
+                      </label>
+                    )}
+                    {feedSource?.kind === "loss" && (
+                      <p className="helper">
+                        Recorded feed losses debit stock-loss expense and credit
+                        feed inventory at the original selected-lot value.
+                      </p>
+                    )}
+                    <p className="helper">
+                      Recognize each original purchase before its
+                      consumption/loss. Review prior manual book entries to
+                      avoid double recognition. Unknown costs and
+                      changed/overlinked daily consumption are ineligible. No
+                      payment is executed, physical stock moved or cost
+                      review/COGS/profit inferred. Purchase accounting reversals
+                      require dependent consumption/loss recognition reversed
+                      first, with a date no earlier than those reversals.
+                    </p>
+                  </>
+                )}
                 {mode === "reverse" && (
                   <>
                     <label>
@@ -890,6 +1109,10 @@ export default function FinancialJournal({
                     expectedPosition: base,
                     data: data(),
                     source,
+                    feedSource,
+                    purchaseSettlement,
+                    consumptionTreatment,
+                    paymentEvidence,
                     original,
                   })
                 }

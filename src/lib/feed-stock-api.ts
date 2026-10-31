@@ -235,6 +235,19 @@ export async function feedStockApi(
         fail(409, "This feed receipt was already used for different values.");
       return { id: old.id, replayed: true };
     }
+    if (
+      p.data.kind === "void" &&
+      (
+        await c.query("SELECT feed_financial_is_booked($1,$2) AS booked", [
+          p.organizationId,
+          p.data.voidOfId,
+        ])
+      ).rows[0].booked
+    )
+      fail(
+        409,
+        "Reverse the feed financial recognition before voiding its physical source. Accounting reversals do not move physical stock.",
+      );
     const ctx = await context(c, p.organizationId);
     if (p.expectedPosition !== ctx.head)
       fail(
