@@ -171,3 +171,8 @@ Measured-processing hosted evidence: deployment `afb1b57` reached READY after mi
 
 
 GitHub Actions run 41121283495 passed the complete 364-test/47-Python/23-browser workflow for `afb1b57`. The final scoped layer-chart containment fix passed renewed lint/types/build, five independent immediate-resize workflows and the full twenty-three-browser production suite. It fixes the actual drawing overflow while retaining the strict viewport constraint. No processing domain, source/receipt, worker or credential behavior changed during that layout correction.
+
+
+## Broiler source-linked product stock update
+
+Apply migrations **026_broiler_product_stock.sql** and **027_product_harvest_guidance.sql** through the dedicated preview's admin provisioning transport before the Git push. It adds the immutable RLS product ledger, invoker active view, independent stock/clinical/source/date/receipt guards and protection against changing processing sources with active product receipts. No application secret/environment or Python worker redeployment is needed. Run the normal restricted-runtime checks, 385 application/database and 47 Python checks, lint/types/build and 24 production-mode Chromium workflows. Verify the exact Git SHA and stable alias after Vercel is READY. Hosted checks use only private labeled synthetic accounts through public APIs and preserve original live FCR, immutable saved plans/budgets and original currencies. Never run local fixture cleanup against hosted Neon.

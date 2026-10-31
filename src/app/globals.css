@@ -2053,3 +2053,62 @@ textarea {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+.broiler-products {
+  margin-block: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.broiler-lifecycle .broiler-products table {
+  table-layout: fixed;
+  min-width: 780px;
+  width: 100%;
+}
+.broiler-products td,
+.broiler-products th {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.broiler-products td .helper {
+  display: block;
+}
+.broiler-products pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 24rem;
+  overflow: auto;
+}
+.broiler-products > .helper {
+  overflow-wrap: anywhere;
+}
+.broiler-products .product-ack {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.65rem;
+  margin-block: 1rem;
+}
+.broiler-products .product-ack input {
+  width: auto;
+  margin-top: 0.25rem;
+}
+
+.broiler-products form,
+.broiler-products .table-scroll {
+  min-width: 0;
+}
+.broiler-products .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.broiler-products .form-grid label {
+  min-width: 0;
+}
+.broiler-products .broiler-fields {
+  border-color: var(--line);
+}
+@media (max-width: 600px) {
+  .broiler-products .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -2,6 +2,7 @@
 import BroilerRecovery from "./broiler-recovery";
 import BroilerLoss from "./broiler-loss";
 import BroilerProcessing from "./broiler-processing";
+import BroilerProducts from "./broiler-products";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError, downloadReport, downloadJson } from "@/lib/client";
 import {
@@ -32,6 +33,7 @@ export default function BroilerLifecycle({
     [recoveryPending, setRecoveryPending] = useState(false),
     [lossPending, setLossPending] = useState(false),
     [processingPending, setProcessingPending] = useState(false),
+    [productsPending, setProductsPending] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [pending, setPending] = useState<BroilerInput | null>(null),
@@ -154,7 +156,8 @@ export default function BroilerLifecycle({
       stale ||
       recoveryPending ||
       lossPending ||
-      processingPending
+      processingPending ||
+      productsPending
     )
       return;
     const f = new FormData(e.currentTarget),
@@ -211,7 +214,8 @@ export default function BroilerLifecycle({
     stale ||
     recoveryPending ||
     lossPending ||
-    processingPending;
+    processingPending ||
+    productsPending;
   return (
     <section className="panel broiler-lifecycle" aria-label="Broiler lifecycle">
       <div className="panel-heading">
@@ -388,12 +392,38 @@ export default function BroilerLifecycle({
               discrepancy.
             </p>
           )}
+          <BroilerProducts
+            snapshot={data}
+            actor={actor}
+            canReview={canReview}
+            blocked={
+              busy ||
+              !!pending ||
+              stale ||
+              recoveryPending ||
+              lossPending ||
+              processingPending
+            }
+            onPendingChange={setProductsPending}
+            onSaved={async () => {
+              const d = await api<BroilerSnapshot>(endpoint);
+              await onSaved();
+              setData(d);
+              setStale(false);
+              return d;
+            }}
+          />
           <BroilerProcessing
             snapshot={data}
             actor={actor}
             canReview={canReview}
             blocked={
-              busy || !!pending || stale || recoveryPending || lossPending
+              busy ||
+              !!pending ||
+              stale ||
+              recoveryPending ||
+              lossPending ||
+              productsPending
             }
             onPendingChange={setProcessingPending}
             onSaved={async () => {
@@ -409,7 +439,12 @@ export default function BroilerLifecycle({
             actor={actor}
             canReview={canReview}
             blocked={
-              busy || !!pending || stale || recoveryPending || processingPending
+              busy ||
+              !!pending ||
+              stale ||
+              recoveryPending ||
+              processingPending ||
+              productsPending
             }
             onPendingChange={setLossPending}
             onSaved={async () => {
@@ -425,7 +460,12 @@ export default function BroilerLifecycle({
             actor={actor}
             canReview={canReview}
             blocked={
-              busy || !!pending || stale || lossPending || processingPending
+              busy ||
+              !!pending ||
+              stale ||
+              lossPending ||
+              processingPending ||
+              productsPending
             }
             onPendingChange={setRecoveryPending}
             onSaved={async () => {

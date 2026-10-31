@@ -91,6 +91,18 @@ export async function broilerProcessingApi(
         );
       return { id: old.id, replayed: true };
     }
+    if (
+      (
+        await c.query(
+          "SELECT 1 FROM active_broiler_product_events e JOIN broiler_processing_reviews r ON r.id=e.source_review_id WHERE e.kind='receipt' AND r.harvest_id=$1 LIMIT 1",
+          [p.harvestId],
+        )
+      ).rowCount
+    )
+      fail(
+        409,
+        "Product receipts depend on this processing version. Correct dependent movements and erroneous receipts before changing the source measurements.",
+      );
     const s = await readBroilerSource(c, p.organizationId, p.unitId);
     const positions = [
       ...s.events,
