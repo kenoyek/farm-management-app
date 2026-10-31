@@ -2260,3 +2260,62 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.feed-stock,
+.feed-stock form,
+.feed-stock .feed-stock-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  min-width: 0;
+}
+.feed-stock section,
+.feed-stock label,
+.feed-stock .table-scroll {
+  min-width: 0;
+}
+.feed-stock .feed-stock-fields {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+}
+.feed-stock table {
+  min-width: 800px;
+  table-layout: fixed;
+}
+.feed-stock th,
+.feed-stock td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.feed-stock .helper {
+  overflow-wrap: anywhere;
+}
+.feed-stock td .helper {
+  display: block;
+}
+.feed-stock pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 24rem;
+  overflow: auto;
+}
+.feed-stock .feed-stock-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+.feed-stock .feed-stock-check input {
+  width: auto;
+  min-height: auto;
+  margin-top: 0.25rem;
+}
+.feed-stock .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 600px) {
+  .feed-stock .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

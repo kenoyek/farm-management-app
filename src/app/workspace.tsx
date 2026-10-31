@@ -4,6 +4,7 @@ import Team from "./team";
 import EggInventory from "./egg-inventory";
 import Production from "./production";
 import FinancialJournal from "./financial-journal";
+import FeedStock from "./feed-stock";
 import Projections from "./projections";
 import FeedStudio from "./feed-studio";
 import { api } from "@/lib/client";
@@ -333,6 +334,7 @@ export default function Workspace() {
             [Warehouse, "My farms"],
             [ClipboardList, "Production"],
             [Warehouse, "Egg inventory"],
+            [Warehouse, "Feed inventory"],
             [FlaskConical, "Feed studio"],
             [ChartNoAxesCombined, "Projections"],
             [BookOpen, "Finance"],
@@ -340,10 +342,19 @@ export default function Workspace() {
           ]
             .filter(
               ([, label]) =>
-                label !== "Finance" ||
-                ["owner", "admin", "manager", "auditor"].includes(
-                  org?.role ?? "",
-                ),
+                (label !== "Feed inventory" ||
+                  [
+                    "owner",
+                    "admin",
+                    "manager",
+                    "inventory",
+                    "accounts",
+                    "auditor",
+                  ].includes(org?.role ?? "")) &&
+                (label !== "Finance" ||
+                  ["owner", "admin", "manager", "auditor"].includes(
+                    org?.role ?? "",
+                  )),
             )
             .map(([Icon, label]) => {
               const I = Icon as typeof Sprout;
@@ -455,15 +466,17 @@ export default function Workspace() {
                     ? "Room to grow."
                     : view === "Settings"
                       ? "Your workspace, your way."
-                      : view === "Finance"
-                        ? "Every posting has two sides."
-                        : view === "Production"
-                          ? "A record of every day."
-                          : view === "Egg inventory"
-                            ? "Every egg accounted for."
-                            : view === "Feed studio"
-                              ? "Better feed starts here."
-                              : "Plan the season ahead."}
+                      : view === "Feed inventory"
+                        ? "Trace each feed lot."
+                        : view === "Finance"
+                          ? "Every posting has two sides."
+                          : view === "Production"
+                            ? "A record of every day."
+                            : view === "Egg inventory"
+                              ? "Every egg accounted for."
+                              : view === "Feed studio"
+                                ? "Better feed starts here."
+                                : "Plan the season ahead."}
               </h1>
               <p className="muted">
                 {view === "Overview"
@@ -472,15 +485,17 @@ export default function Workspace() {
                     ? "Manage every location from one organization."
                     : view === "Settings"
                       ? "Organization details, access and account information."
-                      : view === "Finance"
-                        ? "Review balanced entries, recorded sale recognition and original-currency trial balances."
-                        : view === "Production"
-                          ? "Track your flocks, batches and ponds with real daily records."
-                          : view === "Egg inventory"
-                            ? "Receive collections, reconcile physical stock and record egg sales."
-                            : view === "Feed studio"
-                              ? "Build a recipe with transparent nutrition and cost calculations."
-                              : "Explore feed needs and egg production with explicit assumptions."}
+                      : view === "Feed inventory"
+                        ? "Record feed purchases, actual consumption, stock losses and original-cost valuation."
+                        : view === "Finance"
+                          ? "Review balanced entries, recorded sale recognition and original-currency trial balances."
+                          : view === "Production"
+                            ? "Track your flocks, batches and ponds with real daily records."
+                            : view === "Egg inventory"
+                              ? "Receive collections, reconcile physical stock and record egg sales."
+                              : view === "Feed studio"
+                                ? "Build a recipe with transparent nutrition and cost calculations."
+                                : "Explore feed needs and egg production with explicit assumptions."}
               </p>
             </div>
             {(view === "Overview" || view === "My farms") && (
@@ -827,6 +842,28 @@ export default function Workspace() {
                   </div>
                 </>
               )}
+              {view === "Feed inventory" &&
+                ([
+                  "owner",
+                  "admin",
+                  "manager",
+                  "inventory",
+                  "accounts",
+                  "auditor",
+                ].includes(org.role) ? (
+                  <FeedStock
+                    key={`${orgId}:${user.email}`}
+                    organizationId={orgId}
+                    actor={user.email}
+                    role={org.role}
+                    currency={org.currency}
+                  />
+                ) : (
+                  <p className="notice">
+                    Your current role cannot access feed purchases and
+                    valuations.
+                  </p>
+                ))}
               {view === "Finance" &&
                 (["owner", "admin", "manager", "auditor"].includes(org.role) ? (
                   <FinancialJournal

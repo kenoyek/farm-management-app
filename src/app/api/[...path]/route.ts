@@ -1,4 +1,5 @@
 import { productionApi } from "@/lib/production-api";
+import { feedStockApi } from "@/lib/feed-stock-api";
 import { financialJournalApi } from "@/lib/financial-journal-api";
 import { feedApi } from "@/lib/feed-api";
 import { z } from "zod";
@@ -75,6 +76,8 @@ async function handler(request: NextRequest) {
     if (!user) fail(401, "Please sign in to continue.");
     const financial = await financialJournalApi(request, user, path);
     if (financial) return financial;
+    const feedStock = await feedStockApi(request, user, path);
+    if (feedStock) return feedStock;
     if (path === "auth/logout" && method === "POST") {
       await pool.query("DELETE FROM sessions WHERE token_hash=$1", [
         tokenHash(token!),
