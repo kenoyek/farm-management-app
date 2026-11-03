@@ -223,7 +223,7 @@ export async function financialJournalApi(
       ).rows[0];
       const feedRows = (
         await c.query(
-          `SELECT s.*,s.recorded_on::text,feed_cost_is_managed(s.organization_id,s.lot_id) AS cost_managed,count(*) OVER()::int AS matches FROM financial_feed_sources s WHERE s.organization_id=$1 AND (s.feed_name ILIKE $2 OR s.reference ILIKE $2) AND ($3='all' OR s.recognized_id IS NULL) ORDER BY s.recorded_on DESC,s.source_id LIMIT 200`,
+          `SELECT s.*,s.recorded_on::text,(SELECT t.source_snapshot->'count'->'input'->>'reference' FROM feed_stocktakes t WHERE t.organization_id=s.organization_id AND t.kind='resolve_shortage' AND t.loss_event_id=s.source_id) AS count_reference,feed_cost_is_managed(s.organization_id,s.lot_id) AS cost_managed,count(*) OVER()::int AS matches FROM financial_feed_sources s WHERE s.organization_id=$1 AND (s.feed_name ILIKE $2 OR s.reference ILIKE $2) AND ($3='all' OR s.recognized_id IS NULL) ORDER BY s.recorded_on DESC,s.source_id LIMIT 200`,
           [org, needle, status],
         )
       ).rows;
@@ -262,6 +262,7 @@ export async function financialJournalApi(
               : row.recorded_on.toISOString().slice(0, 10),
           matches: undefined,
           source_current: !!row.source_current,
+          count_reference: row.count_reference ?? undefined,
           eligible:
             !row.cost_managed &&
             row.amount !== null &&
@@ -277,6 +278,12 @@ export async function financialJournalApi(
         ).rows,
         feedSourceMatches: feedRows[0]?.matches ?? 0,
         feedCoverage,
+        unresolvedStocktakes: (
+          await c.query(
+            "SELECT count(*)::int AS n FROM feed_stocktakes t WHERE t.organization_id=$1 AND t.kind='count' AND t.variance_kg<>0 AND NOT EXISTS(SELECT 1 FROM feed_stocktakes n WHERE n.previous_id=t.id) AND NOT EXISTS(SELECT 1 FROM feed_stocktakes r WHERE r.count_id=t.id)",
+            [org],
+          )
+        ).rows[0].n,
         activeSales: counts.active,
         unrecognizedSales: counts.unrecognized,
         units,

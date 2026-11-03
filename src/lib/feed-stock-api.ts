@@ -243,6 +243,19 @@ export async function feedStockApi(
     if (
       p.data.kind === "void" &&
       (
+        await c.query(
+          "SELECT EXISTS(SELECT 1 FROM feed_stocktakes WHERE organization_id=$1 AND kind='resolve_shortage' AND loss_event_id=$2) AND member_role($1) NOT IN ('owner','admin','manager') AS forbidden",
+          [p.organizationId, p.data.voidOfId],
+        )
+      ).rows[0].forbidden
+    )
+      fail(
+        403,
+        "Only a manager may correct a stocktake-approved physical loss.",
+      );
+    if (
+      p.data.kind === "void" &&
+      (
         await c.query("SELECT feed_financial_is_booked($1,$2) AS booked", [
           p.organizationId,
           p.data.voidOfId,
@@ -291,4 +304,13 @@ export async function feedStockApi(
     status: result.replayed ? 200 : 201,
     headers,
   });
+}
+
+export async function validateFeedStockReport(
+  c: PoolClient,
+  org: string,
+  day: string,
+  cutoff: string,
+) {
+  return report(c, org, day, cutoff);
 }

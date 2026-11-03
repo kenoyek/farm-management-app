@@ -92,3 +92,8 @@ Posting reviewed feed costs changes explicitly evidenced ledger amounts only. Co
 ### Genuine supplier returns
 
 Warehouse returns of unused feed are physical withdrawals with supplier handover evidence. They do not establish a change to feed actually eaten, reverse production feed/FCR, verify feed quality/nutrients or resolve overlinked actual daily records. Original costs remain supplied accounting values; unknown return costs stay unknown even after a separate explicit reviewed-cost financial booking. Credit/refund policies record supported carrying-value books and execute no bank movement or automatic WIP/COGS/profit.
+
+
+### Weighed warehouse stocktakes
+
+Stocktakes observe unused physical stock of an identified purchase lot. They do not establish feed actually eaten, correct daily-feed overlinking, alter production/FCR, verify nutrients/quality or approve manufacture. Surplus origin/ownership/cost stays unresolved; the application does not invent a purchase receipt or available-stock quantity. Manager-approved shortages use original carrying-value loss records; unknown original costs remain null even after separate explicit financial repricing. Count proof does not establish WIP/COGS/profit or execute payments.

@@ -1,5 +1,6 @@
 "use client";
 import FeedReviews from "./feed-reviews";
+import FeedCounts from "./feed-counts";
 import { useEffect, useState } from "react";
 import { api, ApiError, downloadJson, downloadReport } from "@/lib/client";
 import {
@@ -50,6 +51,7 @@ export default function FeedStock({
     [ack, setAck] = useState(false),
     [dirty, setDirty] = useState(false),
     [reviewPending, setReviewPending] = useState(false),
+    [countPending, setCountPending] = useState(false),
     [pending, setPending] = useState<FeedStockInput | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -102,7 +104,8 @@ export default function FeedStock({
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty, pending]);
 
-  const disabled = busy || !!pending || reviewPending || !canPost || !w,
+  const disabled =
+      busy || !!pending || reviewPending || countPending || !canPost || !w,
     changed = base !== null && !!w && base !== w.expectedPosition;
   function edit() {
     if (base === null) setBase(w?.expectedPosition ?? null);
@@ -676,7 +679,8 @@ export default function FeedStock({
                       later price change requires a separate workflow. Receipt
                       reversal requires all erroneous dependent
                       consumption/losses reversed first. Existing lot dates
-                      remain chronological.
+                      remain chronological. A manager must correct any
+                      stocktake-approved loss.
                     </p>
                   </>
                 ) : (
@@ -1044,11 +1048,19 @@ export default function FeedStock({
           </section>
         </>
       )}
+      <FeedCounts
+        organizationId={organizationId}
+        actor={actor}
+        role={role}
+        blocked={busy || !!pending || reviewPending}
+        onPendingChange={setCountPending}
+        onSaved={() => void reload(true)}
+      />
       <FeedReviews
         organizationId={organizationId}
         actor={actor}
         role={role}
-        blocked={busy || !!pending}
+        blocked={busy || !!pending || countPending}
         onPendingChange={setReviewPending}
         onReviewed={() => void reload(true)}
       />

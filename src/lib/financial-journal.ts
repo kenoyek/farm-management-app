@@ -280,6 +280,7 @@ export type JournalWorkspace = {
     hasReturns: boolean;
   }[];
   feedSourceMatches: number;
+  unresolvedStocktakes?: number;
   feedCoverage: {
     active: number;
     recognized: number;
@@ -476,6 +477,7 @@ export type FinancialFeedSource = {
   source_current: boolean;
   eligible: boolean;
   cost_managed?: boolean;
+  count_reference?: string;
 };
 export function feedRecognitionLines(
   amount: string,

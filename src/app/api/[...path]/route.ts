@@ -1,3 +1,4 @@
+import { feedCountsApi } from "@/lib/feed-counts-api";
 import { productionApi } from "@/lib/production-api";
 import { feedReviewApi } from "@/lib/feed-review-api";
 import { feedStockApi } from "@/lib/feed-stock-api";
@@ -75,6 +76,8 @@ async function handler(request: NextRequest) {
     const token = request.cookies.get(cookieName)?.value;
     const user = await sessionUser(token);
     if (!user) fail(401, "Please sign in to continue.");
+    const feedCount = await feedCountsApi(request, user, path);
+    if (feedCount) return feedCount;
     const financial = await financialJournalApi(request, user, path);
     if (financial) return financial;
     const feedReview = await feedReviewApi(request, user, path);

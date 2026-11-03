@@ -585,6 +585,13 @@ export default function FinancialJournal({
             filter above. Current coverage is outside frozen report evidence; it
             does not establish complete inventory books.
           </p>
+          {!!workspace.unresolvedStocktakes && (
+            <p className="notice">
+              {workspace.unresolvedStocktakes} latest stocktake difference(s)
+              still need investigation, fresh measurement or manager approval.
+              These explicit books do not reconcile those physical quantities.
+            </p>
+          )}
           {canPost ? (
             <form
               onSubmit={(e) => {

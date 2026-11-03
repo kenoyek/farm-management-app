@@ -2340,3 +2340,14 @@ textarea {
   flex-wrap: wrap;
   min-width: 0;
 }
+
+.feed-counts .panel-heading {
+  padding: 0;
+  flex-wrap: wrap;
+}
+.feed-counts input,
+.feed-counts select,
+.feed-counts textarea {
+  min-width: 0;
+  max-width: 100%;
+}
