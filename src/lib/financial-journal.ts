@@ -151,6 +151,28 @@ export const journalData = z.discriminatedUnion("kind", [
             "Cash/bank purchases require payment evidence; other feed entries must not claim payment.",
         });
     }),
+  z
+    .strictObject({
+      kind: z.literal("recognize_feed_cost"),
+      reviewId: uuid,
+      settlement: z.enum(["payables", "cash_bank"]),
+      paymentEvidence: z.string().trim().max(1000).nullable(),
+      consumptionTreatment: z.enum(["expense", "work_in_progress"]),
+      policy: z.literal("reviewed-feed-cost-ledger-v1"),
+      ...evidence,
+    })
+    .superRefine((p, c) => {
+      if (
+        p.settlement === "cash_bank"
+          ? (p.paymentEvidence?.length ?? 0) < 3
+          : p.paymentEvidence !== null
+      )
+        c.addIssue({
+          code: "custom",
+          message:
+            "Cash adjustments need payment/refund evidence; payable adjustments must not claim cash.",
+        });
+    }),
   z.strictObject({
     kind: z.literal("reverse"),
     originalId: uuid,
@@ -186,7 +208,7 @@ export type JournalEntry = {
   description: string;
   lines: JournalLine[];
   input: JournalData;
-  source_kind: "live" | "product" | "feed" | null;
+  source_kind: "live" | "product" | "feed" | "feed_cost" | null;
   source_id: string | null;
   source_snapshot: Record<string, unknown> | null;
   reversal_of_id: string | null;
@@ -226,6 +248,17 @@ export type JournalWorkspace = {
   unrecognizedSales: number;
   activeSales: number;
   feedSources: FinancialFeedSource[];
+  feedCostReviews: {
+    id: string;
+    target_id: string;
+    revision: number;
+    reviewed_on: string;
+    currency: string;
+    totalCost: string;
+    feedName: string;
+    sourceCurrent: boolean;
+    posted: boolean;
+  }[];
   feedSourceMatches: number;
   feedCoverage: {
     active: number;
@@ -422,6 +455,7 @@ export type FinancialFeedSource = {
   receipt_recognized_id: string | null;
   source_current: boolean;
   eligible: boolean;
+  cost_managed?: boolean;
 };
 export function feedRecognitionLines(
   amount: string,
@@ -459,4 +493,47 @@ export function feedRecognitionLines(
       amount: new D(amount).toFixed(4),
     },
   ];
+}
+export function reviewedCostLines(
+  components: { kind: string; account: string; delta: string }[],
+  settlement: "payables" | "cash_bank",
+): JournalLine[] {
+  const n = new Map<AccountCode, InstanceType<typeof D>>(),
+    add = (a: AccountCode, v: InstanceType<typeof D>) =>
+      n.set(a, (n.get(a) ?? new D(0)).plus(v));
+  for (const c of components) {
+    if (!/^-?(?:0|[1-9]\d*)(?:\.\d{1,4})?$/.test(c.delta))
+      throw Error("Invalid reviewed cost delta.");
+    const v = new D(c.delta);
+    if (c.kind === "receipt") {
+      if (c.account !== "1200") throw Error("Invalid purchase account.");
+      add("1200", v);
+      add(settlement === "cash_bank" ? "1000" : "2000", v.negated());
+    } else {
+      if (!(
+        (c.kind === "consume" && ["5000", "1300"].includes(c.account)) ||
+        (c.kind === "loss" && c.account === "5200")
+      ))
+        throw Error("Invalid consumption/loss account.");
+      add(c.account as AccountCode, v);
+      add("1200", v.negated());
+    }
+  }
+  const lines = chart
+    .filter((a) => n.has(a.code) && !n.get(a.code)!.isZero())
+    .map((a) => ({
+      account: a.code,
+      side: (n.get(a.code)!.gt(0) ? "debit" : "credit") as "debit" | "credit",
+      amount: n.get(a.code)!.abs().toFixed(4),
+    }));
+  return lines.length
+    ? lines
+    : [
+        { account: "1200", side: "debit", amount: "0.0000" },
+        {
+          account: settlement === "cash_bank" ? "1000" : "2000",
+          side: "credit",
+          amount: "0.0000",
+        },
+      ];
 }

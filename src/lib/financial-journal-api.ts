@@ -1,3 +1,8 @@
+import {
+  feedCostPreviewApi,
+  lockFeedCost,
+  feedCostBasis,
+} from "./feed-cost-posting-api";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { NextRequest, NextResponse } from "next/server";
@@ -96,6 +101,22 @@ async function report(
   return r;
 }
 async function lockEntry(c: PoolClient, p: JournalInput) {
+  if (p.data.kind === "recognize_feed_cost") {
+    await lockFeedCost(c, p.organizationId, p.data.reviewId);
+    return;
+  }
+  if (p.data.kind === "reverse") {
+    const original = (
+      await c.query(
+        "SELECT source_kind,source_id FROM financial_journal_entries WHERE organization_id=$1 AND id=$2",
+        [p.organizationId, p.data.originalId],
+      )
+    ).rows[0];
+    if (original?.source_kind === "feed_cost") {
+      await lockFeedCost(c, p.organizationId, original.source_id);
+      return;
+    }
+  }
   let unit: string | null = null;
   if (p.data.kind === "manual") unit = p.data.unitId;
   else if (p.data.kind === "recognize_sale")
@@ -147,6 +168,8 @@ export async function financialJournalApi(
   user: { id: string },
   path: string,
 ) {
+  const costPreview = await feedCostPreviewApi(request, user, path);
+  if (costPreview) return costPreview;
   if (path !== "finance/journal" || !["GET", "POST"].includes(request.method))
     return null;
   if (request.method === "GET") {
@@ -200,7 +223,7 @@ export async function financialJournalApi(
       ).rows[0];
       const feedRows = (
         await c.query(
-          `SELECT s.*,s.recorded_on::text,count(*) OVER()::int AS matches FROM financial_feed_sources s WHERE s.organization_id=$1 AND (s.feed_name ILIKE $2 OR s.reference ILIKE $2) AND ($3='all' OR s.recognized_id IS NULL) ORDER BY s.recorded_on DESC,s.source_id LIMIT 200`,
+          `SELECT s.*,s.recorded_on::text,feed_cost_is_managed(s.organization_id,s.lot_id) AS cost_managed,count(*) OVER()::int AS matches FROM financial_feed_sources s WHERE s.organization_id=$1 AND (s.feed_name ILIKE $2 OR s.reference ILIKE $2) AND ($3='all' OR s.recognized_id IS NULL) ORDER BY s.recorded_on DESC,s.source_id LIMIT 200`,
           [org, needle, status],
         )
       ).rows;
@@ -240,11 +263,18 @@ export async function financialJournalApi(
           matches: undefined,
           source_current: !!row.source_current,
           eligible:
+            !row.cost_managed &&
             row.amount !== null &&
             !row.recognized_id &&
             !!row.source_current &&
             (row.kind === "receipt" || !!row.receipt_recognized_id),
         })) as FinancialFeedSource[],
+        feedCostReviews: (
+          await c.query(
+            `SELECT r.id,r.target_id,r.revision,r.reviewed_on::text,r.currency,r.input->>'totalCost' AS "totalCost",l.input->>'feedName' AS "feedName",r.source_sha256=encode(sha256(convert_to(feed_review_snapshot(r.organization_id,'cost',r.target_id)::text,'UTF8')),'hex') AS "sourceCurrent",EXISTS(SELECT 1 FROM financial_journal_entries j WHERE j.organization_id=r.organization_id AND j.kind='recognize_feed_cost' AND j.source_id=r.id AND NOT EXISTS(SELECT 1 FROM financial_journal_entries v WHERE v.reversal_of_id=j.id)) AS posted FROM current_feed_reconciliation_reviews r JOIN feed_stock_events l ON l.id=r.target_id AND l.organization_id=r.organization_id WHERE r.organization_id=$1 AND r.kind='cost' ORDER BY r.position DESC LIMIT 200`,
+            [org],
+          )
+        ).rows,
         feedSourceMatches: feedRows[0]?.matches ?? 0,
         feedCoverage,
         activeSales: counts.active,
@@ -315,10 +345,38 @@ export async function financialJournalApi(
     if (p.data.kind === "reverse") {
       const original = (
         await c.query(
-          "SELECT source_kind,source_snapshot->'event'->>'kind' AS feed_kind FROM financial_journal_entries WHERE organization_id=$1 AND id=$2",
+          "SELECT source_kind,source_id,source_snapshot->'event'->>'kind' AS feed_kind,source_snapshot->>'lotId' AS cost_lot_id FROM financial_journal_entries WHERE organization_id=$1 AND id=$2",
           [p.organizationId, p.data.originalId],
         )
       ).rows[0];
+      if (original?.source_kind === "feed_cost") {
+        const deps = (
+          await c.query(
+            "SELECT count(*) FILTER(WHERE r.id IS NULL)::int AS active,max(r.posted_on)::text AS last_day FROM financial_journal_entries e LEFT JOIN financial_journal_entries r ON r.reversal_of_id=e.id WHERE e.organization_id=$1 AND e.kind='recognize_feed_cost' AND e.source_snapshot->>'parentPostingId'=$2",
+            [p.organizationId, p.data.originalId],
+          )
+        ).rows[0];
+        if (deps.active > 0)
+          fail(409, "Reverse newer reviewed-cost postings first.");
+        if (deps.last_day && p.data.date < deps.last_day)
+          fail(
+            409,
+            "The cost reversal date must be no earlier than dependent reversal dates.",
+          );
+      }
+      if (original?.source_kind === "feed") {
+        const managed = (
+          await c.query(
+            "SELECT feed_cost_is_managed($1,lot_id) AS managed FROM feed_stock_events WHERE organization_id=$1 AND id=$2",
+            [p.organizationId, original.source_id],
+          )
+        ).rows[0]?.managed;
+        if (managed)
+          fail(
+            409,
+            "Reverse all reviewed-cost postings before changing original feed accounting.",
+          );
+      }
       if (
         original?.source_kind === "feed" &&
         original.feed_kind === "receipt"
@@ -336,15 +394,17 @@ export async function financialJournalApi(
           );
       }
     }
+    if (p.data.kind === "recognize_feed_cost") await feedCostBasis(c, p);
     if (p.data.kind === "recognize_feed") {
       const s = (
         await c.query(
-          "SELECT * FROM financial_feed_sources WHERE organization_id=$1 AND source_id=$2",
+          "SELECT s.*,feed_cost_is_managed(s.organization_id,s.lot_id) AS cost_managed FROM financial_feed_sources s WHERE organization_id=$1 AND source_id=$2",
           [p.organizationId, p.data.sourceId],
         )
       ).rows[0];
       if (
         !s ||
+        s.cost_managed ||
         s.recognized_id ||
         s.amount === null ||
         !s.source_current ||

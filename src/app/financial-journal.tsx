@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import type { FeedCostBasis } from "@/lib/feed-cost-posting-api";
 import { api, ApiError, downloadJson, downloadReport } from "@/lib/client";
 import {
   chart,
@@ -57,6 +58,15 @@ export default function FinancialJournal({
       "expense" | "work_in_progress" | ""
     >(""),
     [paymentEvidence, setPaymentEvidence] = useState(""),
+    [costReview, setCostReview] = useState(""),
+    [costSettlement, setCostSettlement] = useState<
+      "payables" | "cash_bank" | ""
+    >(""),
+    [costTreatment, setCostTreatment] = useState<
+      "expense" | "work_in_progress" | ""
+    >(""),
+    [costPayment, setCostPayment] = useState(""),
+    [costPreview, setCostPreview] = useState<FeedCostBasis | null>(null),
     [original, setOriginal] = useState<Original | null>(null),
     [settlement, setSettlement] = useState(""),
     [cashEvidence, setCashEvidence] = useState(""),
@@ -140,6 +150,7 @@ export default function FinancialJournal({
     setDirty(true);
     setAck(false);
     setPreview(null);
+    setCostPreview(null);
     setNotice("");
   }
   function remember(p: JournalInput | null) {
@@ -215,6 +226,16 @@ export default function FinancialJournal({
         policy: "recorded-feed-lot-value-v1",
         ...common,
       };
+    if (mode === "recognize_feed_cost")
+      return {
+        kind: mode,
+        reviewId: costReview,
+        settlement: costSettlement,
+        consumptionTreatment: costTreatment,
+        paymentEvidence: costSettlement === "cash_bank" ? costPayment : null,
+        policy: "reviewed-feed-cost-ledger-v1",
+        ...common,
+      };
     return { kind: mode, originalId: original?.id, date, ...common };
   }
   async function save(p: JournalInput) {
@@ -246,6 +267,11 @@ export default function FinancialJournal({
       setAck(false);
       setDirty(false);
       setPreview(null);
+      setCostPreview(null);
+      setCostReview("");
+      setCostSettlement("");
+      setCostTreatment("");
+      setCostPayment("");
       setNotice(
         "Journal entry posted with balanced debits and credits. Physical stock and external cash movements are unchanged.",
       );
@@ -279,6 +305,30 @@ export default function FinancialJournal({
     const p = journalData.safeParse(data());
     if (!p.success) {
       setError(p.error.issues.map((i) => i.message).join(" "));
+      return;
+    }
+    if (!saving && p.data.kind === "recognize_feed_cost") {
+      setBusy(true);
+      setError("");
+      void api<FeedCostBasis>(
+        "finance/feed-costs/preview",
+        journalInput.parse({
+          organizationId,
+          entryId: crypto.randomUUID(),
+          expectedPosition: base ?? workspace!.expectedPosition,
+          data: p.data,
+        }),
+      )
+        .then((v) => {
+          setPreview({
+            currency: v.currency,
+            date: v.postedOn,
+            lines: v.lines,
+          });
+          setCostPreview(v);
+        })
+        .catch((e) => setError(e.message))
+        .finally(() => setBusy(false));
       return;
     }
     if (!saving) {
@@ -529,6 +579,9 @@ export default function FinancialJournal({
                     }}
                   >
                     <option value="manual">Manual balanced entry</option>
+                    <option value="recognize_feed_cost">
+                      Post a reviewed feed cost
+                    </option>
                     <option value="recognize_feed">
                       Recognize a recorded feed movement
                     </option>
@@ -995,6 +1048,115 @@ export default function FinancialJournal({
                     </p>
                   </>
                 )}
+                {mode === "recognize_feed_cost" && (
+                  <>
+                    <label>
+                      Reviewed feed cost authority
+                      <select
+                        value={costReview}
+                        onChange={(e) => {
+                          edit();
+                          setCostReview(e.target.value);
+                          setBase(workspace.expectedPosition);
+                        }}
+                        required
+                      >
+                        <option value="">
+                          Choose a current unposted cost review
+                        </option>
+                        {workspace.feedCostReviews.map((r) => (
+                          <option
+                            key={r.id}
+                            value={r.id}
+                            disabled={!r.sourceCurrent || r.posted}
+                          >
+                            {r.feedName} · version {r.revision} ·{" "}
+                            {r.reviewed_on} · {r.currency} {r.totalCost}
+                            {r.posted
+                              ? " · posted"
+                              : !r.sourceCurrent
+                                ? " · physical source changed"
+                                : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Cost difference settlement
+                      <select
+                        value={costSettlement}
+                        onChange={(e) => {
+                          edit();
+                          setCostSettlement(
+                            e.target.value as typeof costSettlement,
+                          );
+                        }}
+                        required
+                      >
+                        <option value="">
+                          Choose evidenced adjustment settlement
+                        </option>
+                        <option value="payables">
+                          Payable / supplier credit adjustment
+                        </option>
+                        <option value="cash_bank">
+                          Recorded cash/bank payment or refund · evidence
+                          required
+                        </option>
+                      </select>
+                    </label>
+                    {costSettlement === "cash_bank" && (
+                      <label>
+                        Cost payment or refund evidence
+                        <textarea
+                          value={costPayment}
+                          onChange={(e) => {
+                            edit();
+                            setCostPayment(e.target.value);
+                          }}
+                          maxLength={1000}
+                          required
+                        />
+                      </label>
+                    )}
+                    <label>
+                      Previously unbooked consumption treatment
+                      <select
+                        value={costTreatment}
+                        onChange={(e) => {
+                          edit();
+                          setCostTreatment(
+                            e.target.value as typeof costTreatment,
+                          );
+                        }}
+                        required
+                      >
+                        <option value="">
+                          Choose the policy for unbooked consumed feed
+                        </option>
+                        <option value="expense">Production expense</option>
+                        <option value="work_in_progress">
+                          Production work in progress
+                        </option>
+                      </select>
+                    </label>
+                    <p className="helper">
+                      The server compares full reviewed values with already
+                      linked book entries and earlier active cost postings. Only
+                      the remaining difference is posted. Existing expense/WIP
+                      choices are preserved; this choice applies to unbooked
+                      consumption. Unknown original costs may be booked
+                      initially from an evidenced review without rewriting
+                      original stock values. Review prior manual entries to
+                      avoid duplicate booking. All actual sources must be
+                      current. The accounting date is the review date, no
+                      earlier than prior lot accounting/reversals. Payments are
+                      recorded evidence; no bank transaction executes. Reverse
+                      newer cost postings first before changing original linked
+                      feed accounting or physical sources.
+                    </p>
+                  </>
+                )}
                 {mode === "reverse" && (
                   <>
                     <label>
@@ -1113,6 +1275,10 @@ export default function FinancialJournal({
                     purchaseSettlement,
                     consumptionTreatment,
                     paymentEvidence,
+                    costReview,
+                    costSettlement,
+                    costTreatment,
+                    costPayment,
                     original,
                   })
                 }
@@ -1140,6 +1306,45 @@ export default function FinancialJournal({
                 this preview.
               </p>
               {lineTable(preview.lines)}
+            </section>
+          )}
+          {costPreview && (
+            <section aria-label="Unsaved reviewed-cost basis">
+              <h3>Reviewed cost versus already linked books</h3>
+              <p>
+                {costPreview.currency} reviewed purchase{" "}
+                {costPreview.reviewedPurchaseValue} − already booked{" "}
+                {costPreview.bookedPurchaseValue} = purchase difference{" "}
+                {costPreview.purchaseDelta}. Accounting date{" "}
+                {costPreview.postedOn}. This is an unsaved preview.
+              </p>
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Source / account</th>
+                      <th>Kg</th>
+                      <th>Already booked</th>
+                      <th>Reviewed value</th>
+                      <th>Posting difference</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {costPreview.components.map((c) => (
+                      <tr key={c.eventId}>
+                        <td>
+                          {c.kind} · {c.account}
+                          <span className="helper">{c.eventId}</span>
+                        </td>
+                        <td>{c.weightKg}</td>
+                        <td>{c.bookedValue}</td>
+                        <td>{c.reviewedValue}</td>
+                        <td>{c.delta}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
           <section aria-label="Posted trial balance">

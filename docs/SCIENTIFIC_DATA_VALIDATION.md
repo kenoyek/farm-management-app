@@ -82,3 +82,8 @@ Feed financial recognition derives existing actual selected-lot values and origi
 
 
 A feed-source reaffirmation is a manager's evidence that the original physical lot quantity remains correct after a full daily-record correction. It cannot remove overlinking, certify actual nutrition or change feed/biomass/FCR. The original and current daily evidence plus all linked quantities remain captured. Late purchase-cost reviews use supplied final invoice/landed-cost evidence in the original currency; names, recipes, forecasts and previous reviews supply no inferred price. Unknown originals remain unknown, revised zero requires evidence, and original stock/book/approval rows remain unchanged. Reviewed costs are managerial valuations, not automatic financial adjustments, COGS or profit.
+
+
+### Finance cost-review boundary
+
+Posting reviewed feed costs changes explicitly evidenced ledger amounts only. Cost authority and linked accounting basis do not verify nutrient measurements, approve feed manufacture, modify physical kilograms/production/FCR, populate incurred-cost review modules or establish WIP/COGS/profit. Unknown original physical values remain unknown after an explicit initial financial booking. Actual-source changes require current source evidence before a new cost posting; prior immutable books remain historical evidence. Genuine quantity corrections need a separate physical reconciliation.
