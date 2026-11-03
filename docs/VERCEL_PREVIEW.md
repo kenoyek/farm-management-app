@@ -225,3 +225,7 @@ Feature `0345a36` reached READY at `dpl_3R6AEcEAw73LTebgkYgBrrqJ2mov` after migr
 ### Reviewed feed-cost accounting preview
 
 Apply migrations **035–036** using the administrative migration transport before deploying the matching app. The restricted runtime role, worker and environment secrets remain unchanged. Verify the exact deployment SHA/READY state and stable alias; then exercise Finance → Post a reviewed feed cost using private labeled synthetic records. Include incremental booked-basis preview, exact-receipt recovery, stale journal heads, negative/refund and unknown/zero bookings, role/origin/tenant denials, physical-source protection and newest-first/date-constrained reversals. Preserve original report bytes and independently replay exported journal/CSV/SHA and PostgreSQL source tokens. No local database cleanup may target hosted Neon.
+
+Completed feature `f7cfd04` was verified READY as `dpl_CcYLgAUkji3sLaawfXK2CNzEGV21` with the matching stable alias, home 200, anonymous preview 401 and served cost controls. All **47 hosted API/Chromium checks** and independent Decimal/book-basis/CSV/hash/source-token replay passed. The evidence-only push is verified separately for its exact deployment SHA/alias.
+
+GitHub Actions **41640639579** passed all fresh migration/runtime, **523 application/database**, **47 Python**, lint/types/build and **30 Chromium** gates for `f7cfd04`.
