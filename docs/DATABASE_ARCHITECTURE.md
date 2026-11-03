@@ -175,3 +175,10 @@ Sorted captured lot-unit locks precede stock 813, review 814 and journal 812. A 
 Only cost-source journal snapshots expand to 768 KiB; existing sources retain 32 KiB. The 1,000-entry journal, 1 MiB report and 3 MiB CSV bounds remain. No journal columns/model/chart versions or old export columns change. Immutable physical/review rows and prior report bytes remain stable.
 
 Migration **036_feed_cost_consumption_evidence.sql** extends newly derived consumption components with the complete current daily/unit source and accepted source-review proof (or explicit null). It preserves all prior immutable entries; subsequent actual corrections cannot rewrite the historical accepted authority.
+
+
+### Supplier returns (migration 037)
+
+`feed_stock_events.kind=supplier_return` withdraws unused physical stock from an original same-tenant receipt with reserved return reference and supplier handover evidence. SQL derives original currency, remaining-cost value and stock model v2, caps available kg and serializes with all other stock mutations. Returns and consumption/loss share remaining-value conservation but retain distinct kinds. Existing v1 rows/reports stay immutable. v2 report/review fields appear only for prefixes/history containing returns; real daily-source quantities are unaffected.
+
+Return recognition uses the existing guarded journal/source path with a distinct original-carrying-value policy, active purchase lineage and explicit payable credit or evidenced cash refund. Deferred consistency and own-tenant boolean protection cover returns and zero-valued sources. Return-aware cost postings use a fixed-schema five-argument basis helper; the old four-argument v1 wrapper remains. v2 exact input requires separate unbooked-return settlement/accounting evidence, preserves existing accounts and freezes complete basis/source proof. Component construction and final source remain within 768 KiB; original source bounds, 1,000 events/entries/reviews, 1 MiB report and 3 MiB CSV remain. All mutations share report/audit rollback and existing tenant/actor/time/receipt safeguards.

@@ -4,6 +4,7 @@ const D = DecimalBase.clone({
   precision: 40,
   rounding: DecimalBase.ROUND_HALF_UP,
 });
+export const feedReturnModel = "specific-feed-lot-stock-v2";
 export const feedStockModel = "specific-feed-lot-stock-v1";
 export const feedValuePolicy = "specific-lot-remaining-cost-v1";
 const uuid = z.uuid().transform((v) => v.toLowerCase());
@@ -65,6 +66,15 @@ export const feedStockData = z.discriminatedUnion("kind", [
     weightKg: decimal(6),
     ...evidence,
   }),
+  z.strictObject({
+    kind: z.literal("supplier_return"),
+    lotId: uuid,
+    weightKg: decimal(6),
+    returnReference: z.string().trim().min(3).max(100),
+    supplierEvidence: z.string().trim().min(3).max(2000),
+    scope: z.literal("actual-unused-feed-return-to-original-supplier"),
+    ...evidence,
+  }),
   z.strictObject({ kind: z.literal("void"), voidOfId: uuid, ...evidence }),
 ]);
 export const feedStockInput = z.strictObject({
@@ -113,6 +123,7 @@ export function feedWithdrawalValue(
   return (kg.eq(balance) ? value : value.times(kg).div(balance)).toFixed(4);
 }
 export function feedStockResults(events: FeedStockEvent[]) {
+  const hasReturns = events.some((e) => e.kind === "supplier_return");
   const voided = new Set(
       events.filter((e) => e.kind === "void").map((e) => e.void_of_id),
     ),
@@ -124,7 +135,8 @@ export function feedStockResults(events: FeedStockEvent[]) {
         throw Error("Invalid saved feed receipt.");
       const out = active.filter(
           (e) =>
-            e.lot_id === receipt.id && ["consume", "loss"].includes(e.kind),
+            e.lot_id === receipt.id &&
+            ["consume", "loss", "supplier_return"].includes(e.kind),
         ),
         isActive = !voided.has(receipt.id);
       const qty = (kind: string) =>
@@ -144,15 +156,21 @@ export function feedStockResults(events: FeedStockEvent[]) {
               .toFixed(4);
       const consumedKg = qty("consume"),
         lostKg = qty("loss"),
-        balance = new D(receipt.weight_kg).minus(consumedKg).minus(lostKg),
+        returnedKg = qty("supplier_return"),
+        balance = new D(receipt.weight_kg)
+          .minus(consumedKg)
+          .minus(lostKg)
+          .minus(returnedKg),
         consumedValue = value("consume"),
         lostValue = value("loss"),
+        returnedValue = value("supplier_return"),
         remainingValue =
           receipt.amount === null
             ? null
             : new D(receipt.amount)
                 .minus(consumedValue!)
                 .minus(lostValue!)
+                .minus(returnedValue!)
                 .toFixed(4);
       if (
         balance.isNegative() ||
@@ -169,6 +187,9 @@ export function feedStockResults(events: FeedStockEvent[]) {
         receivedValue: receipt.amount,
         consumedKg: consumedKg.toFixed(6),
         lostKg: lostKg.toFixed(6),
+        ...(hasReturns
+          ? { returnedKg: returnedKg.toFixed(6), returnedValue }
+          : {}),
         balanceKg: (isActive ? balance : new D(0)).toFixed(6),
         consumedValue,
         lostValue,
@@ -187,13 +208,26 @@ export function feedStockResults(events: FeedStockEvent[]) {
       const list = lots.filter((l) => l.active && l.currency === currency),
         sum = (
           key:
-            "receivedValue" | "consumedValue" | "lostValue" | "remainingValue",
+            | "receivedValue"
+            | "consumedValue"
+            | "lostValue"
+            | "returnedValue"
+            | "remainingValue",
         ) => list.reduce((n, l) => n.plus(l[key] ?? 0), new D(0)).toFixed(4);
       return {
         currency,
         knownReceivedValue: sum("receivedValue"),
         knownConsumedValue: sum("consumedValue"),
         knownLostValue: sum("lostValue"),
+        ...(hasReturns
+          ? {
+              knownReturnedValue: sum("returnedValue"),
+              unknownReturnedKg: list
+                .filter((l) => l.receivedValue === null)
+                .reduce((n, l) => n.plus(l.returnedKg ?? 0), new D(0))
+                .toFixed(6),
+            }
+          : {}),
         knownRemainingValue: sum("remainingValue"),
         unknownValueLots: list.filter((l) => l.receivedValue === null).length,
         unknownConsumedKg: list
@@ -282,6 +316,7 @@ export type FeedStockWorkspace = {
   reversible: FeedStockEvent[];
 };
 export function feedStockCsv(r: FeedStockReport) {
+  const hasReturns = r.modelVersion === feedReturnModel;
   const rows: unknown[][] = [
     ["Feed purchases, stock and consumed-feed valuation", r.modelVersion],
     ["Policy", r.policy],
@@ -302,10 +337,12 @@ export function feedStockCsv(r: FeedStockReport) {
       "Received kg",
       "Consumed kg",
       "Lost kg",
+      ...(hasReturns ? ["Returned kg"] : []),
       "Remaining kg",
       "Received value",
       "Consumed value",
       "Lost value",
+      ...(hasReturns ? ["Returned value"] : []),
       "Remaining value",
     ],
   ];
@@ -319,10 +356,12 @@ export function feedStockCsv(r: FeedStockReport) {
       l.receivedKg,
       l.consumedKg,
       l.lostKg,
+      ...(hasReturns ? [l.returnedKg] : []),
       l.balanceKg,
       l.receivedValue,
       l.consumedValue,
       l.lostValue,
+      ...(hasReturns ? [l.returnedValue] : []),
       l.remainingValue,
     ]);
   rows.push(

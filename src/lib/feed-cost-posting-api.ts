@@ -48,13 +48,22 @@ export async function feedCostBasis(
     throw Error("Reviewed cost posting required.");
   try {
     const basis: FeedCostBasis = (
-      await c.query("SELECT feed_cost_posting_basis($1,$2,$3,$4) AS basis", [
-        p.organizationId,
-        p.data.reviewId,
-        p.data.settlement,
-        p.data.consumptionTreatment,
-      ])
+      await c.query(
+        "SELECT feed_cost_posting_basis_with_returns($1,$2,$3,$4,$5) AS basis",
+        [
+          p.organizationId,
+          p.data.reviewId,
+          p.data.settlement,
+          p.data.consumptionTreatment,
+          p.data.returnSettlement ?? null,
+        ],
+      )
     ).rows[0].basis;
+    if (basis.policy !== p.data.policy)
+      fail(
+        409,
+        "Choose the cost posting policy for this lot and its supplier returns.",
+      );
     if (
       JSON.stringify(
         basis.lines.map(({ account, side, amount }) => [account, side, amount]),

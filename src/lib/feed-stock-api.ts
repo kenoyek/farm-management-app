@@ -8,6 +8,7 @@ import {
   feedStockInput,
   feedStockDay,
   feedStockModel,
+  feedReturnModel,
   feedValuePolicy,
   feedStockResults,
   feedStockCsv,
@@ -73,7 +74,9 @@ async function report(
   if (
     rows.length > 1000 ||
     rows.some(
-      (e) => e.model_version !== feedStockModel || e.policy !== feedValuePolicy,
+      (e) =>
+        ![feedStockModel, feedReturnModel].includes(e.model_version) ||
+        e.policy !== feedValuePolicy,
     )
   )
     fail(
@@ -81,7 +84,9 @@ async function report(
       "This feed ledger exceeds its event limit or has an unsupported model.",
     );
   const normalized = {
-      modelVersion: feedStockModel,
+      modelVersion: rows.some((e) => e.model_version === feedReturnModel)
+        ? feedReturnModel
+        : feedStockModel,
       policy: feedValuePolicy,
       organizationId: org,
       asOf: day,

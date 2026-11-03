@@ -130,7 +130,10 @@ export const journalData = z.discriminatedUnion("kind", [
       purchaseSettlement: z.enum(["payables", "cash_bank"]).nullable(),
       consumptionTreatment: z.enum(["expense", "work_in_progress"]).nullable(),
       paymentEvidence: z.string().trim().max(1000).nullable(),
-      policy: z.literal("recorded-feed-lot-value-v1"),
+      policy: z.enum([
+        "recorded-feed-lot-value-v1",
+        "recorded-feed-return-carrying-value-v1",
+      ]),
       ...evidence,
     })
     .superRefine((p, c) => {
@@ -158,7 +161,12 @@ export const journalData = z.discriminatedUnion("kind", [
       settlement: z.enum(["payables", "cash_bank"]),
       paymentEvidence: z.string().trim().max(1000).nullable(),
       consumptionTreatment: z.enum(["expense", "work_in_progress"]),
-      policy: z.literal("reviewed-feed-cost-ledger-v1"),
+      policy: z.enum([
+        "reviewed-feed-cost-ledger-v1",
+        "reviewed-feed-cost-ledger-v2",
+      ]),
+      returnSettlement: z.enum(["payables", "cash_bank"]).optional(),
+      returnAccountingEvidence: z.string().trim().min(3).max(1000).optional(),
       ...evidence,
     })
     .superRefine((p, c) => {
@@ -171,6 +179,17 @@ export const journalData = z.discriminatedUnion("kind", [
           code: "custom",
           message:
             "Cash adjustments need payment/refund evidence; payable adjustments must not claim cash.",
+        });
+      if (
+        p.policy === "reviewed-feed-cost-ledger-v2"
+          ? !p.returnSettlement || !p.returnAccountingEvidence
+          : p.returnSettlement !== undefined ||
+            p.returnAccountingEvidence !== undefined
+      )
+        c.addIssue({
+          code: "custom",
+          message:
+            "Return-aware cost postings require supplier-return settlement and accounting evidence; v1 postings must omit them.",
         });
     }),
   z.strictObject({
@@ -258,6 +277,7 @@ export type JournalWorkspace = {
     feedName: string;
     sourceCurrent: boolean;
     posted: boolean;
+    hasReturns: boolean;
   }[];
   feedSourceMatches: number;
   feedCoverage: {
@@ -444,7 +464,7 @@ export type FinancialFeedSource = {
   source_id: string;
   lot_id: string;
   unit_id: string | null;
-  kind: "receipt" | "consume" | "loss";
+  kind: "receipt" | "consume" | "loss" | "supplier_return";
   recorded_on: string;
   currency: string;
   amount: string | null;
@@ -464,7 +484,8 @@ export function feedRecognitionLines(
   treatment: "expense" | "work_in_progress" | null,
 ): JournalLine[] {
   if (
-    (kind === "receipt" && (!purchase || treatment !== null)) ||
+    (["receipt", "supplier_return"].includes(kind) &&
+      (!purchase || treatment !== null)) ||
     (kind === "consume" && (purchase !== null || !treatment)) ||
     (kind === "loss" && (purchase !== null || treatment !== null))
   )
@@ -472,13 +493,17 @@ export function feedRecognitionLines(
   return [
     {
       account:
-        kind === "receipt"
-          ? "1200"
-          : kind === "loss"
-            ? "5200"
-            : treatment === "expense"
-              ? "5000"
-              : "1300",
+        kind === "supplier_return"
+          ? purchase === "cash_bank"
+            ? "1000"
+            : "2000"
+          : kind === "receipt"
+            ? "1200"
+            : kind === "loss"
+              ? "5200"
+              : treatment === "expense"
+                ? "5000"
+                : "1300",
       side: "debit",
       amount: new D(amount).toFixed(4),
     },
@@ -512,7 +537,8 @@ export function reviewedCostLines(
     } else {
       if (!(
         (c.kind === "consume" && ["5000", "1300"].includes(c.account)) ||
-        (c.kind === "loss" && c.account === "5200")
+        (c.kind === "loss" && c.account === "5200") ||
+        (c.kind === "supplier_return" && ["2000", "1000"].includes(c.account))
       ))
         throw Error("Invalid consumption/loss account.");
       add(c.account as AccountCode, v);

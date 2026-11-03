@@ -229,3 +229,8 @@ Apply migrations **035–036** using the administrative migration transport befo
 Completed feature `f7cfd04` was verified READY as `dpl_CcYLgAUkji3sLaawfXK2CNzEGV21` with the matching stable alias, home 200, anonymous preview 401 and served cost controls. All **47 hosted API/Chromium checks** and independent Decimal/book-basis/CSV/hash/source-token replay passed. The evidence-only push is verified separately for its exact deployment SHA/alias.
 
 GitHub Actions **41640639579** passed all fresh migration/runtime, **523 application/database**, **47 Python**, lint/types/build and **30 Chromium** gates for `f7cfd04`.
+
+
+### Supplier-return preview
+
+Apply migration **037** with the administrative preview transport before the matching app deploy. Keep runtime/worker credentials unchanged. Verify exact READY commit/stable alias, home 200, anonymous stock API 401 and served supplier-return controls. Public synthetic checks must cover physical/financial separation, lost response/recovery, stale stock, no-overdraw/reference/scope/role/origin guards, original carrying-value refund, versioned return-aware cost reviews/postings, unknown/zero/residual handling, physical/accounting dependencies and reversals, saved old v1/v2 exports, mobile and unchanged production. Independently replay stock, review and journal JSON/CSV/hash/source evidence. Never run local cleanup against Neon.

@@ -10,6 +10,7 @@ const D = DecimalBase.clone({
   precision: 40,
   rounding: DecimalBase.ROUND_HALF_UP,
 });
+export const feedReturnReviewModel = "feed-reconciliation-v2";
 export const feedReviewModel = "feed-reconciliation-v1";
 const uuid = z.uuid().transform((v) => v.toLowerCase()),
   common = {
@@ -127,12 +128,15 @@ export function feedReviewResults(
       s.events.filter((e) => e.kind === "void").map((e) => e.void_of_id),
     ),
     active = s.events.filter(
-      (e) => ["consume", "loss"].includes(e.kind) && !voids.has(e.id),
+      (e) =>
+        ["consume", "loss", "supplier_return"].includes(e.kind) &&
+        !voids.has(e.id),
     );
   let remainingKg = new D(s.receipt.weight_kg),
     remainingValue = review.input.totalCost,
     consumed = new D(0),
-    lost = new D(0);
+    lost = new D(0),
+    returned = new D(0);
   const allocations = active.map((e) => {
     const value = feedWithdrawalValue(
       remainingKg.toFixed(6),
@@ -142,7 +146,8 @@ export function feedReviewResults(
     remainingKg = remainingKg.minus(e.weight_kg);
     remainingValue = new D(remainingValue).minus(value).toFixed(4);
     if (e.kind === "consume") consumed = consumed.plus(value);
-    else lost = lost.plus(value);
+    else if (e.kind === "loss") lost = lost.plus(value);
+    else returned = returned.plus(value);
     return {
       eventId: e.id,
       kind: e.kind,
@@ -162,6 +167,14 @@ export function feedReviewResults(
     currency: s.receipt.currency,
     receivedKg: s.receipt.weight_kg,
     consumedKg: original.consumedKg,
+    ...(original.returnedKg !== undefined
+      ? {
+          returnedKg: original.returnedKg,
+          originalReturnedValue: original.returnedValue!,
+          reviewedReturnedValue: returned.toFixed(4),
+          returnedDelta: delta(returned.toFixed(4), original.returnedValue!),
+        }
+      : {}),
     lostKg: original.lostKg,
     remainingKg: remainingKg.toFixed(6),
     originalTotalCost: s.receipt.amount,

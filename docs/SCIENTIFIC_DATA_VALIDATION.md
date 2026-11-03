@@ -87,3 +87,8 @@ A feed-source reaffirmation is a manager's evidence that the original physical l
 ### Finance cost-review boundary
 
 Posting reviewed feed costs changes explicitly evidenced ledger amounts only. Cost authority and linked accounting basis do not verify nutrient measurements, approve feed manufacture, modify physical kilograms/production/FCR, populate incurred-cost review modules or establish WIP/COGS/profit. Unknown original physical values remain unknown after an explicit initial financial booking. Actual-source changes require current source evidence before a new cost posting; prior immutable books remain historical evidence. Genuine quantity corrections need a separate physical reconciliation.
+
+
+### Genuine supplier returns
+
+Warehouse returns of unused feed are physical withdrawals with supplier handover evidence. They do not establish a change to feed actually eaten, reverse production feed/FCR, verify feed quality/nutrients or resolve overlinked actual daily records. Original costs remain supplied accounting values; unknown return costs stay unknown even after a separate explicit reviewed-cost financial booking. Credit/refund policies record supported carrying-value books and execute no bank movement or automatic WIP/COGS/profit.

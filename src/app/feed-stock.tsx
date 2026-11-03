@@ -193,6 +193,16 @@ export default function FeedStock({
         scope: "actual-recorded-feed-consumption",
         ...common,
       });
+    if (mode === "supplier_return")
+      return feedStockData.parse({
+        kind: mode,
+        lotId: fields.lotId ?? "",
+        weightKg: fields.weightKg ?? "",
+        returnReference: fields.returnReference ?? "",
+        supplierEvidence: fields.supplierEvidence ?? "",
+        scope: "actual-unused-feed-return-to-original-supplier",
+        ...common,
+      });
     return feedStockData.parse({
       kind: mode,
       lotId: fields.lotId ?? "",
@@ -223,7 +233,7 @@ export default function FeedStock({
       const e = w?.reversible.find((e) => e.id === d.voidOfId);
       if (!e) throw Error("Choose an unreversed original feed movement.");
       return {
-        kind: `Erroneous ${e.kind} reversal`,
+        kind: `Erroneous ${e.kind.replaceAll("_", " ")} reversal`,
         date: p.date,
         kg: e.weight_kg,
         currency: e.currency,
@@ -240,7 +250,11 @@ export default function FeedStock({
       );
     return {
       kind:
-        d.kind === "consume" ? "Actual feed consumption" : "Measured feed loss",
+        d.kind === "consume"
+          ? "Actual feed consumption"
+          : d.kind === "supplier_return"
+            ? "Actual supplier return"
+            : "Measured feed loss",
       date: p.date,
       kg: d.weightKg,
       currency: lot.currency,
@@ -360,9 +374,10 @@ export default function FeedStock({
       </div>
       <p className="helper">
         Receive actual owned feed purchase lots, link evidenced consumption to
-        existing broiler daily feed, and record measured stock losses. The
-        selected lot retains its original currency and supplied total cost.
-        Unknown cost stays unknown; an explicit zero requires evidence.
+        existing broiler daily feed, record measured stock losses, and return
+        unused stock to its original supplier. The selected lot retains its
+        original currency and supplied total cost. Unknown cost stays unknown;
+        an explicit zero requires evidence.
       </p>
       <p className="helper">
         Valuation uses each identified lot’s remaining cost in proportion to
@@ -560,6 +575,9 @@ export default function FeedStock({
                       Link actual feed consumption
                     </option>
                     <option value="loss">Record measured feed loss</option>
+                    <option value="supplier_return">
+                      Return unused feed to supplier
+                    </option>
                     <option value="void">Reverse an erroneous entry</option>
                   </select>
                 </label>
@@ -646,8 +664,8 @@ export default function FeedStock({
                         <option value="">Choose an unreversed original</option>
                         {w.reversible.map((e) => (
                           <option key={e.id} value={e.id}>
-                            {e.recorded_on} · {e.kind} · {e.weight_kg} kg ·{" "}
-                            {e.currency} · {e.id}
+                            {e.recorded_on} · {e.kind.replaceAll("_", " ")} ·{" "}
+                            {e.weight_kg} kg · {e.currency} · {e.id}
                           </option>
                         ))}
                       </select>
@@ -687,6 +705,43 @@ export default function FeedStock({
                     {input("weightKg", "Withdrawn feed kg", {
                       placeholder: "Exact kg, up to six decimals",
                     })}
+                    {mode === "supplier_return" && (
+                      <>
+                        {input("returnReference", "Supplier return reference", {
+                          max: 100,
+                        })}
+                        <label>
+                          Supplier handover and acceptance evidence
+                          <textarea
+                            value={fields.supplierEvidence ?? ""}
+                            onChange={(e) =>
+                              field("supplierEvidence", e.target.value)
+                            }
+                            maxLength={2000}
+                            required
+                          />
+                        </label>
+                        <p className="notice">
+                          Original supplier:{" "}
+                          {w.currentLots.find(
+                            (l) => l.receipt.id === fields.lotId,
+                          )?.receipt.input.kind === "receipt"
+                            ? (
+                                w.currentLots.find(
+                                  (l) => l.receipt.id === fields.lotId,
+                                )!.receipt.input as Extract<
+                                  FeedStockData,
+                                  { kind: "receipt" }
+                                >
+                              ).supplier
+                            : "Choose a lot"}
+                          . Record weighed unused feed that actually left stock
+                          for this supplier. Value follows the original lot;
+                          unknown cost stays unknown. Finance separately reviews
+                          any carrying-value credit or refund.
+                        </p>
+                      </>
+                    )}
                     {mode === "consume" && (
                       <>
                         <label>
@@ -861,11 +916,17 @@ export default function FeedStock({
             {w.report.results.currencies.map((c) => (
               <p className="notice" key={c.currency}>
                 {c.currency} known received {c.knownReceivedValue} = consumed{" "}
-                {c.knownConsumedValue} + lost {c.knownLostValue} + remaining{" "}
-                {c.knownRemainingValue}. Unknown-value lots:{" "}
+                {c.knownConsumedValue} + lost {c.knownLostValue}
+                {c.knownReturnedValue !== undefined && (
+                  <> + returned {c.knownReturnedValue}</>
+                )}{" "}
+                + remaining {c.knownRemainingValue}. Unknown-value lots:{" "}
                 {c.unknownValueLots}; unknown consumed {c.unknownConsumedKg} kg;
-                unknown remaining {c.unknownRemainingKg} kg. Currencies stay
-                separate.
+                unknown remaining {c.unknownRemainingKg} kg
+                {c.unknownReturnedKg !== undefined && (
+                  <>; unknown returned {c.unknownReturnedKg} kg</>
+                )}
+                . Currencies stay separate.
               </p>
             ))}
             <div className="table-scroll">
@@ -876,6 +937,9 @@ export default function FeedStock({
                     <th>Received kg / value</th>
                     <th>Consumed kg / value</th>
                     <th>Lost kg / value</th>
+                    {w.report.results.lots.some(
+                      (l) => l.returnedKg !== undefined,
+                    ) && <th>Returned kg / value</th>}
                     <th>Remaining kg / value</th>
                   </tr>
                 </thead>
@@ -907,6 +971,14 @@ export default function FeedStock({
                           {l.lostValue ?? "Unknown"}
                         </span>
                       </td>
+                      {l.returnedKg !== undefined && (
+                        <td>
+                          {l.returnedKg}
+                          <span className="helper">
+                            {l.returnedValue ?? "Unknown"}
+                          </span>
+                        </td>
+                      )}
                       <td>
                         {l.balanceKg}
                         <span className="helper">
@@ -958,7 +1030,8 @@ export default function FeedStock({
               w.report.events.map((e) => (
                 <details key={e.id}>
                   <summary>
-                    {e.recorded_on} · {e.kind} · {e.weight_kg} kg · {e.currency}{" "}
+                    {e.recorded_on} · {e.kind.replaceAll("_", " ")} ·{" "}
+                    {e.weight_kg} kg · {e.currency}{" "}
                     {e.amount ?? "Unknown value"}
                   </summary>
                   <p className="helper">

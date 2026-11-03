@@ -248,8 +248,11 @@ export default function FeedReviews({
       <>
         <p>
           {v.currency} full revised cost {v.reviewedTotalCost} = consumed{" "}
-          {v.reviewedConsumedValue} + lost {v.reviewedLostValue} + remaining{" "}
-          {v.reviewedRemainingValue}. Original total{" "}
+          {v.reviewedConsumedValue} + lost {v.reviewedLostValue}
+          {v.reviewedReturnedValue !== undefined && (
+            <> + returned {v.reviewedReturnedValue}</>
+          )}{" "}
+          + remaining {v.reviewedRemainingValue}. Original total{" "}
           {v.originalTotalCost ?? "Unknown"}; difference{" "}
           {v.totalDelta ?? "Unknown original basis"}.
         </p>
@@ -257,7 +260,13 @@ export default function FeedReviews({
           Consumed difference {v.consumedDelta ?? "Unknown original basis"};
           lost difference {v.lostDelta ?? "Unknown original basis"}; remaining
           difference {v.remainingDelta ?? "Unknown original basis"}. These
-          compare with original stock values, not a previous review.
+          compare with original stock values, not a previous review.{" "}
+          {v.returnedKg !== undefined && (
+            <>
+              Returned {v.returnedKg} kg; returned difference{" "}
+              {v.returnedDelta ?? "Unknown original basis"}.
+            </>
+          )}
         </p>
         <div className="table-scroll">
           <table>
@@ -274,7 +283,7 @@ export default function FeedReviews({
               {v.allocations.map((a) => (
                 <tr key={a.eventId}>
                   <td>
-                    {a.kind} · {a.date}
+                    {a.kind.replaceAll("_", " ")} · {a.date}
                     <span className="helper">{a.eventId}</span>
                   </td>
                   <td>{a.weightKg}</td>

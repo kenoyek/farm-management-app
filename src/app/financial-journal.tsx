@@ -66,6 +66,10 @@ export default function FinancialJournal({
       "expense" | "work_in_progress" | ""
     >(""),
     [costPayment, setCostPayment] = useState(""),
+    [costReturnSettlement, setCostReturnSettlement] = useState<
+      "payables" | "cash_bank" | ""
+    >(""),
+    [costReturnEvidence, setCostReturnEvidence] = useState(""),
     [costPreview, setCostPreview] = useState<FeedCostBasis | null>(null),
     [original, setOriginal] = useState<Original | null>(null),
     [settlement, setSettlement] = useState(""),
@@ -88,6 +92,9 @@ export default function FinancialJournal({
       date: string;
       lines: JournalLine[];
     } | null>(null);
+  const costHasReturns = !!workspace?.feedCostReviews.find(
+    (r) => r.id === costReview,
+  )?.hasReturns;
   function path(day = asOf, pos = cutoff) {
     const q = new URLSearchParams({ organizationId, sourceStatus, search });
     if (day) q.set("asOf", day);
@@ -216,15 +223,22 @@ export default function FinancialJournal({
       return {
         kind: mode,
         sourceId: feedSource?.source_id,
-        purchaseSettlement:
-          feedSource?.kind === "receipt" ? purchaseSettlement || null : null,
+        purchaseSettlement: ["receipt", "supplier_return"].includes(
+          feedSource?.kind ?? "",
+        )
+          ? purchaseSettlement || null
+          : null,
         consumptionTreatment:
           feedSource?.kind === "consume" ? consumptionTreatment || null : null,
         paymentEvidence:
-          feedSource?.kind === "receipt" && purchaseSettlement === "cash_bank"
+          ["receipt", "supplier_return"].includes(feedSource?.kind ?? "") &&
+          purchaseSettlement === "cash_bank"
             ? paymentEvidence
             : null,
-        policy: "recorded-feed-lot-value-v1",
+        policy:
+          feedSource?.kind === "supplier_return"
+            ? "recorded-feed-return-carrying-value-v1"
+            : "recorded-feed-lot-value-v1",
         ...common,
       };
     if (mode === "recognize_feed_cost")
@@ -234,7 +248,13 @@ export default function FinancialJournal({
         settlement: costSettlement,
         consumptionTreatment: costTreatment,
         paymentEvidence: costSettlement === "cash_bank" ? costPayment : null,
-        policy: "reviewed-feed-cost-ledger-v1",
+        ...(costHasReturns
+          ? {
+              policy: "reviewed-feed-cost-ledger-v2",
+              returnSettlement: costReturnSettlement,
+              returnAccountingEvidence: costReturnEvidence,
+            }
+          : { policy: "reviewed-feed-cost-ledger-v1" }),
         ...common,
       };
     return { kind: mode, originalId: original?.id, date, ...common };
@@ -273,6 +293,8 @@ export default function FinancialJournal({
       setCostSettlement("");
       setCostTreatment("");
       setCostPayment("");
+      setCostReturnSettlement("");
+      setCostReturnEvidence("");
       setNotice(
         "Journal entry posted with balanced debits and credits. Physical stock and external cash movements are unchanged.",
       );
@@ -295,7 +317,8 @@ export default function FinancialJournal({
       (!feedSource ||
         !feedSource.eligible ||
         feedSource.amount === null ||
-        (feedSource.kind === "receipt" && !purchaseSettlement) ||
+        (["receipt", "supplier_return"].includes(feedSource.kind) &&
+          !purchaseSettlement) ||
         (feedSource.kind === "consume" && !consumptionTreatment))
     ) {
       setError(
@@ -940,9 +963,9 @@ export default function FinancialJournal({
                             value={s.source_id}
                             disabled={!s.eligible}
                           >
-                            {s.kind} · {s.feed_name} · {s.reference} ·{" "}
-                            {s.recorded_on} · {s.weight_kg} kg · {s.currency}{" "}
-                            {s.amount ?? "Unknown value"}
+                            {s.kind.replaceAll("_", " ")} · {s.feed_name} ·{" "}
+                            {s.reference} · {s.recorded_on} · {s.weight_kg} kg ·{" "}
+                            {s.currency} {s.amount ?? "Unknown value"}
                             {s.cost_managed
                               ? " · use reviewed cost posting"
                               : s.recognized_id
@@ -961,7 +984,7 @@ export default function FinancialJournal({
                     </label>
                     {feedSource && (
                       <p className="notice">
-                        Original feed {feedSource.kind}:{" "}
+                        Original feed {feedSource.kind.replaceAll("_", " ")}:{" "}
                         {feedSource.recorded_on} · {feedSource.currency}{" "}
                         {feedSource.amount ?? "Unknown value"} ·{" "}
                         {feedSource.weight_kg} kg. Date, value, original
@@ -969,10 +992,13 @@ export default function FinancialJournal({
                         posted.
                       </p>
                     )}
-                    {feedSource?.kind === "receipt" && (
+                    {(feedSource?.kind === "receipt" ||
+                      feedSource?.kind === "supplier_return") && (
                       <>
                         <label>
-                          Feed purchase settlement
+                          {feedSource?.kind === "supplier_return"
+                            ? "Supplier-return settlement"
+                            : "Feed purchase settlement"}
                           <select
                             value={purchaseSettlement}
                             onChange={(e) => {
@@ -987,16 +1013,22 @@ export default function FinancialJournal({
                               Choose evidenced settlement
                             </option>
                             <option value="payables">
-                              Trade payable · payment not claimed
+                              {feedSource?.kind === "supplier_return"
+                                ? "Supplier credit against payables · debit 2000"
+                                : "Trade payable · payment not claimed"}
                             </option>
                             <option value="cash_bank">
-                              Cash/bank paid · payment evidence required
+                              {feedSource?.kind === "supplier_return"
+                                ? "Recorded cash/bank refund · debit 1000"
+                                : "Cash/bank paid · payment evidence required"}
                             </option>
                           </select>
                         </label>
                         {purchaseSettlement === "cash_bank" && (
                           <label>
-                            Feed purchase payment evidence
+                            {feedSource?.kind === "supplier_return"
+                              ? "Supplier-return refund evidence"
+                              : "Feed purchase payment evidence"}
                             <textarea
                               value={paymentEvidence}
                               onChange={(e) => {
@@ -1009,6 +1041,15 @@ export default function FinancialJournal({
                           </label>
                         )}
                       </>
+                    )}
+                    {feedSource?.kind === "supplier_return" && (
+                      <p className="helper">
+                        Recognize the original carrying value of the weighed
+                        return only when your supplier credit/refund evidence
+                        supports that amount. Review fees or differences
+                        separately; no refund executes and original
+                        purchase/physical history is preserved.
+                      </p>
                     )}
                     {feedSource?.kind === "consume" && (
                       <label>
@@ -1123,6 +1164,52 @@ export default function FinancialJournal({
                           required
                         />
                       </label>
+                    )}
+                    {costHasReturns && (
+                      <>
+                        <label>
+                          Previously unbooked supplier-return settlement
+                          <select
+                            value={costReturnSettlement}
+                            onChange={(e) => {
+                              edit();
+                              setCostReturnSettlement(
+                                e.target.value as typeof costReturnSettlement,
+                              );
+                            }}
+                            required
+                          >
+                            <option value="">
+                              Choose evidenced return settlement
+                            </option>
+                            <option value="payables">
+                              Supplier credit against payables
+                            </option>
+                            <option value="cash_bank">
+                              Recorded cash/bank refund
+                            </option>
+                          </select>
+                        </label>
+                        <label>
+                          Supplier-return accounting evidence
+                          <textarea
+                            value={costReturnEvidence}
+                            onChange={(e) => {
+                              edit();
+                              setCostReturnEvidence(e.target.value);
+                            }}
+                            maxLength={1000}
+                            required
+                          />
+                        </label>
+                        <p className="helper">
+                          Return allocations credit inventory and debit the
+                          preserved credit/refund account. This choice applies
+                          to previously unbooked returns. Evidence must support
+                          all signed return adjustments, including previously
+                          booked refunds; no bank payment executes.
+                        </p>
+                      </>
                     )}
                     <label>
                       Previously unbooked consumption treatment
@@ -1281,6 +1368,8 @@ export default function FinancialJournal({
                     consumptionTreatment,
                     paymentEvidence,
                     costReview,
+                    costReturnSettlement,
+                    costReturnEvidence,
                     costSettlement,
                     costTreatment,
                     costPayment,
@@ -1338,7 +1427,7 @@ export default function FinancialJournal({
                     {costPreview.components.map((c) => (
                       <tr key={c.eventId}>
                         <td>
-                          {c.kind} · {c.account}
+                          {c.kind.replaceAll("_", " ")} · {c.account}
                           <span className="helper">{c.eventId}</span>
                         </td>
                         <td>{c.weightKg}</td>

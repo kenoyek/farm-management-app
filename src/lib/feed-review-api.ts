@@ -8,6 +8,7 @@ import { feedStockReaders } from "./feed-stock-api";
 import {
   feedReviewInput,
   feedReviewModel,
+  feedReturnReviewModel,
   feedReviewResults,
   feedReviewCsv,
   type FeedReview,
@@ -66,10 +67,10 @@ async function readReview(
   return row.review;
 }
 function report(review: FeedReview): FeedReviewReport {
-  if (review.model_version !== feedReviewModel)
+  if (![feedReviewModel, feedReturnReviewModel].includes(review.model_version))
     fail(422, "Unsupported saved feed review model.");
   const n = {
-      modelVersion: feedReviewModel,
+      modelVersion: review.model_version,
       review,
       results: feedReviewResults(review),
     },
