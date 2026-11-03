@@ -176,6 +176,7 @@ export default function FinancialJournal({
         setBase(w.expectedPosition);
         setAck(false);
         setPreview(null);
+        setCostPreview(null);
         setNotice(
           "Current journal reloaded. Working inputs retained; review sources and confirm again.",
         );
@@ -310,6 +311,8 @@ export default function FinancialJournal({
     if (!saving && p.data.kind === "recognize_feed_cost") {
       setBusy(true);
       setError("");
+      setPreview(null);
+      setCostPreview(null);
       void api<FeedCostBasis>(
         "finance/feed-costs/preview",
         journalInput.parse({
@@ -940,16 +943,18 @@ export default function FinancialJournal({
                             {s.kind} · {s.feed_name} · {s.reference} ·{" "}
                             {s.recorded_on} · {s.weight_kg} kg · {s.currency}{" "}
                             {s.amount ?? "Unknown value"}
-                            {s.recognized_id
-                              ? " · recognized"
-                              : s.amount === null
-                                ? " · unknown cost"
-                                : !s.source_current
-                                  ? " · source changed"
-                                  : s.kind !== "receipt" &&
-                                      !s.receipt_recognized_id
-                                    ? " · recognize purchase first"
-                                    : ""}
+                            {s.cost_managed
+                              ? " · use reviewed cost posting"
+                              : s.recognized_id
+                                ? " · recognized"
+                                : s.amount === null
+                                  ? " · unknown cost"
+                                  : !s.source_current
+                                    ? " · source changed"
+                                    : s.kind !== "receipt" &&
+                                        !s.receipt_recognized_id
+                                      ? " · recognize purchase first"
+                                      : ""}
                           </option>
                         ))}
                       </select>

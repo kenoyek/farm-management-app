@@ -896,3 +896,38 @@ it("refuses a newly linked unit that appeared while waiting for the original lot
     if (pending) await pending;
   }
 });
+
+it("freezes the accepted corrected daily source and source-review authority in a previously unbooked cost posting", async () => {
+  const lot = await save({
+      ...feedReceipt(),
+      totalCost: null,
+      costEvidence: null,
+    }),
+    issue = await save(await consume(lot));
+  await correction(10, "Synthetic original corrected actual daily evidence");
+  const sourceReview = await savedReview("source", issue),
+    costReview = await savedReview("cost", lot, "100"),
+    id = await booked(priced(costReview)),
+    w = await fin(),
+    entry = w.report.entries.find((e) => e.id === id)!;
+  const component = (
+    entry.source_snapshot as {
+      components: {
+        eventId: string;
+        sourceEvidence: {
+          currentSource: { record: { notes: string } };
+          sourceReview: { id: string };
+        };
+      }[];
+    }
+  ).components.find((c) => c.eventId === issue)!;
+  expect(component.sourceEvidence.sourceReview.id).toBe(sourceReview);
+  expect(component.sourceEvidence.currentSource.record.notes).toBe(
+    "Synthetic original corrected actual daily evidence",
+  );
+  const frozen = `&asOf=${w.report.asOf}&throughPosition=${w.expectedPosition}&format=json`,
+    before = await (await finGet(owner, frozen)).text();
+  await correction(10, "Synthetic later complete actual daily evidence");
+  expect(await (await finGet(owner, frozen)).text()).toBe(before);
+  expect((await fin()).report.entries.find((e) => e.id === id)).toEqual(entry);
+});

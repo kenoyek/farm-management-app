@@ -29,6 +29,10 @@ export type FeedCostBasis = {
     bookedValue: string;
     reviewedValue: string;
     delta: string;
+    sourceEvidence: {
+      currentSource: Record<string, unknown>;
+      sourceReview: Record<string, unknown> | null;
+    } | null;
     basis: { entryId: string; kind: string; value: string; account: string }[];
   }[];
   lines: JournalLine[];

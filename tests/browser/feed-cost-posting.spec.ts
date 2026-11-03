@@ -368,6 +368,7 @@ test("posts reviewed feed cost differences with exact retry, stale recovery, lat
     await expect(
       region.getByLabel("I confirm the accounting evidence", { exact: false }),
     ).not.toBeChecked();
+    await expect(basis).toHaveCount(0);
     await ack();
     await save();
     w = await fin();
